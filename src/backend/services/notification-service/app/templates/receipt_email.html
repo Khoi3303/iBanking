@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Biên Lai Xác Nhận Thanh Toán Học Phí Thành Công</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+        .header { background: linear-gradient(135deg, #1b4332, #2d6a4f); color: #ffffff; padding: 30px 24px; text-align: center; }
+        .success-icon { font-size: 40px; margin-bottom: 8px; }
+        .header h1 { margin: 0; font-size: 22px; font-weight: 700; }
+        .header p { margin: 4px 0 0 0; opacity: 0.9; font-size: 14px; }
+        .content { padding: 30px 24px; }
+        .amount-card { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; text-align: center; padding: 18px; margin-bottom: 24px; }
+        .amount-title { font-size: 13px; color: #166534; text-transform: uppercase; font-weight: 600; }
+        .amount-val { font-size: 32px; font-weight: 800; color: #15803d; margin-top: 4px; }
+        .details { background: #fdfdfd; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+        .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+        .detail-row:last-child { border-bottom: none; }
+        .label { color: #64748b; }
+        .value { font-weight: 600; color: #0f172a; }
+        .status-badge { display: inline-block; background: #dcfce7; color: #15803d; padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 12px; }
+        .footer { background: #f8fafc; text-align: center; padding: 20px; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="success-icon">✓</div>
+            <h1>THANH TOÁN THÀNH CÔNG</h1>
+            <p>Học phí đã được gạch nợ trực tiếp tại TDTU</p>
+        </div>
+        <div class="content">
+            <p>Kính chào <strong>{{ recipient_name }}</strong>,</p>
+            <p>Giao dịch thanh toán học phí của bạn qua hệ thống iBanking đã được hoàn tất thành công. Khoản nợ học phí của sinh viên đã được hệ thống đào tạo TDTU ghi nhận gạch nợ.</p>
+
+            <div class="amount-card">
+                <div class="amount-title">Số tiền đã thanh toán</div>
+                <div class="amount-val">{{ amount | currency }}</div>
+                <div style="margin-top: 8px;"><span class="status-badge">ĐÃ GẠCH NỢ THÀNH CÔNG</span></div>
+            </div>
+
+            <div class="details">
+                <div class="detail-row">
+                    <span class="label">Mã giao dịch (TxID):</span>
+                    <span class="value" style="font-family: monospace; font-size: 12px;">{{ transaction_id }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Mã số sinh viên (MSSV):</span>
+                    <span class="value">{{ student_code }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Họ và tên sinh viên:</span>
+                    <span class="value">{{ student_name }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Thời gian hoàn tất:</span>
+                    <span class="value">{{ completed_at }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Kênh thanh toán:</span>
+                    <span class="value">Ứng dụng iBanking</span>
+                </div>
+            </div>
+
+            <p style="font-size: 13px; color: #64748b; line-height: 1.6;">
+                Biên lai này có giá trị xác nhận bạn đã hoàn thành nghĩa vụ học phí cho kỳ học này. Sinh viên có thể đăng nhập vào cổng thông tin đào tạo TDTU để kiểm tra lại công nợ.
+            </p>
+        </div>
+        <div class="footer">
+            Phân hệ đóng học phí iBanking - Trường Đại học Tôn Đức Thắng (TDTU).
+        </div>
+    </div>
+</body>
+</html>

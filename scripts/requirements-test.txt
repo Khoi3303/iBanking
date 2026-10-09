@@ -1,0 +1,2 @@
+# Thư viện kiểm thử tự động cho iBanking
+httpx>=0.24.0

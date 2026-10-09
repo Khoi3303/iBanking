@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iBanking - Phân hệ Đóng học phí TDTU</title>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- TOP NOTIFICATION TOAST -->
+        <div id="toast" class="toast hidden"></div>
+
+        <!-- ========================================== -->
+        <!-- SCREEN 1: LOGIN SCREEN -->
+        <!-- ========================================== -->
+        <div id="loginScreen" class="screen active">
+            <div class="login-wrapper">
+                <div class="login-card">
+                    <div class="brand-header">
+                        <div class="logo-box">
+                            <span class="logo-icon">🏛️</span>
+                        </div>
+                        <h1>iBanking TDTU</h1>
+                        <p class="subtitle">Hệ thống Ngân hàng số & Thanh toán học phí</p>
+                    </div>
+
+                    <form id="loginForm">
+                        <div class="form-group">
+                            <label for="loginUsername">Tên đăng nhập (Username)</label>
+                            <input type="text" id="loginUsername" placeholder="Nhập username" required value="nguyenvana">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="loginPassword">Mật khẩu</label>
+                            <input type="password" id="loginPassword" placeholder="Nhập mật khẩu" required value="123456">
+                        </div>
+
+                        <button type="submit" id="btnLogin" class="btn btn-primary btn-block">
+                            <span class="btn-text">Đăng nhập hệ thống</span>
+                            <span class="spinner hidden"></span>
+                        </button>
+                    </form>
+
+                    <!-- QUICK DEMO SELECTION -->
+                    <div class="demo-accounts">
+                        <p class="demo-title">⚡ Chọn nhanh tài khoản demo (Đã seed sẵn):</p>
+                        <div class="demo-chips">
+                            <button type="button" class="chip" onclick="quickFillUser('nguyenvana', '20.000.000đ')">
+                                <strong>Nguyễn Văn A</strong> (20tr)
+                            </button>
+                            <button type="button" class="chip" onclick="quickFillUser('tranthib', '15.000.000đ')">
+                                <strong>Trần Thị B</strong> (15tr)
+                            </button>
+                            <button type="button" class="chip" onclick="quickFillUser('lethanhc', '5.000.000đ')">
+                                <strong>Lê Thành C</strong> (5tr - Test thiếu tiền)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- SCREEN 2: MAIN DASHBOARD -->
+        <!-- ========================================== -->
+        <div id="mainScreen" class="screen hidden">
+            <!-- NAVBAR -->
+            <header class="navbar">
+                <div class="nav-container">
+                    <div class="nav-brand">
+                        <span class="brand-badge">iBanking</span>
+                        <span class="brand-sub">TDTU Tuition Portal</span>
+                    </div>
+
+                    <div class="nav-user">
+                        <div class="user-info-pill">
+                            <div class="avatar" id="userAvatar">A</div>
+                            <div class="user-text">
+                                <span class="user-name" id="navUserName">Nguyễn Văn A</span>
+                                <span class="user-balance-badge" id="navUserBalance">Số dư: 20,000,000 VND</span>
+                            </div>
+                        </div>
+                        <button id="btnLogout" class="btn btn-outline-danger btn-sm" title="Đăng xuất">
+                            Đăng xuất
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- DASHBOARD CONTAINER -->
+            <main class="main-content">
+                <!-- NAVIGATION TABS -->
+                <div class="tabs-bar">
+                    <button id="tabTuitionBtn" class="tab-btn active" onclick="switchTab('tuition')">
+                        💳 Thanh toán học phí
+                    </button>
+                    <button id="tabHistoryBtn" class="tab-btn" onclick="switchTab('history')">
+                        📜 Lịch sử giao dịch
+                    </button>
+                </div>
+
+                <!-- TAB 1: THANH TOÁN HỌC PHÍ -->
+                <div id="tuitionTab" class="tab-content active">
+                    <div class="payment-grid">
+                        
+                        <!-- CỘT TRÁI: THÔNG TIN NGƯỜI NỘP TIỀN & TRA CỨU -->
+                        <div class="payment-col">
+                            <!-- NHÓM A: THÔNG TIN NGƯỜI NỘP TIỀN (READ-ONLY) -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <span class="card-step">A</span>
+                                    <h2>Thông tin Người nộp tiền</h2>
+                                    <span class="badge badge-lock">🔒 Tự động từ tài khoản</span>
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-row">
+                                        <div class="form-group col-12">
+                                            <label>Họ và tên người nộp</label>
+                                            <input type="text" id="payerName" readonly class="input-readonly">
+                                        </div>
+                                        <div class="form-group col-6">
+                                            <label>Số điện thoại</label>
+                                            <input type="text" id="payerPhone" readonly class="input-readonly">
+                                        </div>
+                                        <div class="form-group col-6">
+                                            <label>Địa chỉ Email nhận OTP</label>
+                                            <input type="email" id="payerEmail" readonly class="input-readonly">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- NHÓM B: THÔNG TIN HỌC PHÍ (TRA CỨU MSSV) -->
+                            <div class="card mt-4">
+                                <div class="card-header">
+                                    <span class="card-step">B</span>
+                                    <h2>Tra cứu Thông tin học phí</h2>
+                                </div>
+                                <div class="card-body">
+                                    <div class="search-box">
+                                        <label for="studentCodeInput">Mã số sinh viên (MSSV)</label>
+                                        <div class="input-action-group">
+                                            <input type="text" id="studentCodeInput" placeholder="Ví dụ: 524H0001" value="524H0001">
+                                            <button id="btnSearchStudent" class="btn btn-primary" onclick="searchStudentTuition()">
+                                                Tra cứu học phí
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- GỢI Ý MSSV -->
+                                    <div class="demo-students">
+                                        <span class="text-muted text-sm">Gợi ý MSSV:</span>
+                                        <div class="demo-student-chips">
+                                            <button type="button" class="mini-chip" onclick="quickFillStudent('524H0001')">524H0001</button>
+                                            <button type="button" class="mini-chip" onclick="quickFillStudent('524H0002')">524H0002</button>
+                                            <button type="button" class="mini-chip" onclick="quickFillStudent('524H0003')">524H0003</button>
+                                            <button type="button" class="mini-chip" onclick="quickFillStudent('524H0004')">524H0004</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- KẾT QUẢ TRA CỨU HỌC PHÍ -->
+                                    <div id="tuitionResultArea" class="tuition-result mt-3 hidden">
+                                        <div id="tuitionStatusBanner" class="status-banner"></div>
+                                        
+                                        <div class="info-list">
+                                            <div class="info-item">
+                                                <span class="info-label">Mã số sinh viên:</span>
+                                                <span class="info-val" id="resStudentCode">-</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <span class="info-label">Họ tên sinh viên:</span>
+                                                <span class="info-val font-bold" id="resStudentName">-</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <span class="info-label">Ngành học - Lớp:</span>
+                                                <span class="info-val" id="resStudentClass">-</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <span class="info-label">Học kỳ:</span>
+                                                <span class="info-val" id="resSemester">-</span>
+                                            </div>
+                                            <div class="info-item highlight">
+                                                <span class="info-label">Học phí cần thanh toán:</span>
+                                                <span class="info-val text-primary font-bold text-lg" id="resAmount">0 VND</span>
+                                            </div>
+                                        </div>
+                                        <p class="policy-note">⚠️ Lưu ý: Hệ thống chỉ hỗ trợ thanh toán toàn bộ khoản học phí, không thanh toán từng phần.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CỘT PHẢI: THÔNG TIN THANH TOÁN & XÁC NHẬN -->
+                        <div class="payment-col">
+                            <div class="card sticky-card">
+                                <div class="card-header">
+                                    <span class="card-step">C</span>
+                                    <h2>Thông tin Thanh toán</h2>
+                                </div>
+                                <div class="card-body">
+                                    <!-- THẺ SỐ DƯ & THANH TOÁN -->
+                                    <div class="balance-summary-box">
+                                        <div class="summary-line">
+                                            <span>Số dư khả dụng của bạn:</span>
+                                            <span class="val font-semibold" id="boxUserBalance">0 VND</span>
+                                        </div>
+                                        <div class="summary-line">
+                                            <span>Số tiền học phí cần đóng:</span>
+                                            <span class="val text-danger font-bold" id="boxTuitionAmount">0 VND</span>
+                                        </div>
+                                        <div class="summary-divider"></div>
+                                        <div class="summary-line font-bold">
+                                            <span>Số dư dự kiến sau khi đóng:</span>
+                                            <span class="val text-success" id="boxRemainingBalance">0 VND</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- CẢNH BÁO SỐ DƯ NẾU KHÔNG ĐỦ TIỀN -->
+                                    <div id="insufficientBalanceAlert" class="alert alert-danger hidden mt-3">
+                                        ❌ <strong>Số dư không đủ:</strong> Tài khoản của bạn không đủ số dư để đóng khoản học phí này.
+                                    </div>
+
+                                    <!-- ĐIỀU KHOẢN VÀ THỎA THUẬN -->
+                                    <div class="terms-box mt-3">
+                                        <label class="checkbox-container">
+                                            <input type="checkbox" id="agreeTermsCheckbox">
+                                            <span class="checkmark"></span>
+                                            <span class="terms-text">
+                                                Tôi cam kết các thông tin đã kiểm tra là chính xác và đồng ý với 
+                                                <a href="#terms" onclick="showTermsModal(event)">Điều khoản thanh toán học phí qua iBanking</a>.
+                                            </span>
+                                        </label>
+                                    </div>
+
+                                    <!-- NÚT XÁC NHẬN GIAO DỊCH -->
+                                    <div class="action-box mt-4">
+                                        <button id="btnConfirmInitiate" class="btn btn-success btn-block btn-lg" disabled onclick="initiatePayment()">
+                                            Xác nhận giao dịch
+                                        </button>
+                                        <p class="btn-subtext text-center text-muted text-sm mt-2">
+                                            Nút chỉ khả dụng khi khoản nợ hợp lệ, đủ số dư và đã đồng ý điều khoản.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- TAB 2: LỊCH SỬ GIAO DỊCH -->
+                <div id="historyTab" class="tab-content hidden">
+                    <div class="card">
+                        <div class="card-header flex-between">
+                            <h2>Lịch sử Giao dịch Đóng học phí</h2>
+                            <button class="btn btn-outline-primary btn-sm" onclick="loadTransactionHistory()">
+                                🔄 Làm mới
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table" id="historyTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Thời gian</th>
+                                            <th>Mã giao dịch (TxID)</th>
+                                            <th>MSSV</th>
+                                            <th>Tên sinh viên</th>
+                                            <th>Học kỳ</th>
+                                            <th>Số tiền</th>
+                                            <th>Trạng thái</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="historyTableBody">
+                                        <tr>
+                                            <td colspan="7" class="text-center text-muted py-4">Đang tải lịch sử giao dịch...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- MODAL: NHẬP MÃ XÁC THỰC OTP -->
+        <!-- ========================================== -->
+        <div id="otpModal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3>🔐 Xác thực Giao dịch bằng OTP</h3>
+                    <button class="close-btn" onclick="cancelOtpModal()">&times;</button>
+                </div>
+                <div class="modal-body text-center">
+                    <p class="text-muted">
+                        Hệ thống đã gửi mã OTP xác thực giao dịch đến email:
+                        <br><strong id="otpEmailMasked" class="text-primary font-bold">ngu***@gmail.com</strong>
+                    </p>
+
+                    <!-- ĐỒNG HỒ ĐẾM NGƯỢC 5 PHÚT -->
+                    <div class="timer-box">
+                        <span class="timer-label">Thời gian hiệu lực còn lại:</span>
+                        <span class="timer-clock" id="otpTimer">05:00</span>
+                    </div>
+
+                    <!-- Ô NHẬP OTP 6 CHỮ SỐ -->
+                    <div class="otp-input-wrapper">
+                        <input type="text" id="otpCodeInput" maxlength="6" placeholder="------" autocomplete="one-time-code" autofocus>
+                    </div>
+                    <p class="text-xs text-muted mt-1">Mã OTP gồm 6 chữ số và chỉ sử dụng được 1 lần.</p>
+
+                    <!-- TIỆN ÍCH TRONG MÔI TRƯỜNG DEV/DEMO -->
+                    <div class="mailpit-helper">
+                        <a href="http://localhost:8025" target="_blank" class="mailpit-link">
+                            📬 Mở Hộp thư Mailpit (http://localhost:8025) để lấy OTP
+                        </a>
+                    </div>
+
+                    <div id="otpErrorAlert" class="alert alert-danger hidden mt-3"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="cancelOtpModal()">Hủy giao dịch</button>
+                    <button id="btnSubmitOtp" class="btn btn-primary" onclick="submitOtpConfirm()">
+                        <span class="btn-text">Xác nhận thanh toán</span>
+                        <span class="spinner hidden"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- MODAL: KẾT QUẢ GIAO DỊCH (BIÊN LAI) -->
+        <!-- ========================================== -->
+        <div id="receiptModal" class="modal-overlay hidden">
+            <div class="modal-card receipt-card">
+                <div class="receipt-icon success" id="receiptIcon">✓</div>
+                <h2 id="receiptTitle">Thanh toán thành công!</h2>
+                <p id="receiptSubtitle" class="text-muted">Khoản học phí đã được gạch nợ thành công tại TDTU.</p>
+
+                <div class="receipt-details" id="receiptDetailsBody">
+                    <!-- Dữ liệu hóa đơn sẽ được render từ app.js -->
+                </div>
+
+                <div class="modal-footer text-center">
+                    <button class="btn btn-primary btn-block" onclick="closeReceiptModal()">
+                        Hoàn tất & Về trang chủ
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- MODAL: ĐIỀU KHOẢN VÀ THỎA THUẬN -->
+        <!-- ========================================== -->
+        <div id="termsModal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3>Thỏa thuận & Điều khoản thanh toán</h3>
+                    <button class="close-btn" onclick="closeTermsModal()">&times;</button>
+                </div>
+                <div class="modal-body terms-content">
+                    <p>1. Người nộp tiền xác nhận sử dụng số dư khả dụng trong tài khoản iBanking để thanh toán học phí cho sinh viên Trường Đại học Tôn Đức Thắng (TDTU).</p>
+                    <p>2. Giao dịch chỉ được thực hiện khi thanh toán toàn bộ khoản học phí của học kỳ. Hệ thống không hỗ trợ thanh toán một phần.</p>
+                    <p>3. Mỗi giao dịch phải được xác thực bằng mã OTP gửi về email đã đăng ký. Mã OTP có hiệu lực tối đa 5 phút và chỉ được dùng 1 lần.</p>
+                    <p>4. Sau khi gạch nợ thành công, số tiền đã nộp sẽ không thể hoàn tác trừ trường hợp có quyết định từ Hội đồng Đào tạo nhà trường.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" onclick="closeTermsModal()">Tôi đã hiểu</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- SCRIPT CHÍNH -->
+    <script src="app.js"></script>
+</body>
+</html>

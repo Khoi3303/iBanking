@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Mã OTP Xác Thực Giao Dịch iBanking</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+        .header { background: linear-gradient(135deg, #0d3b66, #005f73); color: #ffffff; padding: 30px 24px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; font-weight: 700; }
+        .header p { margin: 6px 0 0 0; opacity: 0.85; font-size: 14px; }
+        .content { padding: 30px 24px; }
+        .greeting { font-size: 16px; margin-bottom: 20px; }
+        .otp-box { background: #eef4f8; border: 2px dashed #005f73; border-radius: 8px; text-align: center; padding: 20px; margin: 25px 0; }
+        .otp-code { font-size: 38px; font-weight: 800; letter-spacing: 8px; color: #005f73; margin: 8px 0; font-family: 'Courier New', monospace; }
+        .details { background: #fdfdfd; border: 1px solid #e1e8ed; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+        .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f3f6; font-size: 14px; }
+        .detail-row:last-child { border-bottom: none; }
+        .label { color: #666; }
+        .value { font-weight: 600; color: #111; }
+        .warning { background: #fff8e6; border-left: 4px solid #f39c12; padding: 12px 16px; font-size: 13px; color: #7f5200; border-radius: 4px; margin-top: 20px; }
+        .footer { background: #f8fafc; text-align: center; padding: 20px; font-size: 12px; color: #888; border-top: 1px solid #edf2f7; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>iBanking - Đại Học Tôn Đức Thắng</h1>
+            <p>Xác thực giao dịch thanh toán học phí</p>
+        </div>
+        <div class="content">
+            <div class="greeting">Kính chào <strong>{{ recipient_name }}</strong>,</div>
+            <p>Hệ thống vừa nhận được yêu cầu thanh toán học phí cho sinh viên <strong>{{ student_name }}</strong>. Dưới đây là mã xác thực OTP của bạn:</p>
+
+            <div class="otp-box">
+                <div style="font-size: 13px; color: #555; text-transform: uppercase; font-weight: 600;">Mã OTP của bạn là</div>
+                <div class="otp-code">{{ otp_code }}</div>
+                <div style="font-size: 12px; color: #e74c3c; font-weight: 500;">Hiệu lực trong vòng {{ expires_minutes }} phút (Chỉ sử dụng 1 lần)</div>
+            </div>
+
+            <div class="details">
+                <div class="detail-row">
+                    <span class="label">Sinh viên thụ hưởng:</span>
+                    <span class="value">{{ student_name }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Số tiền thanh toán:</span>
+                    <span class="value" style="color: #005f73;">{{ amount | currency }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Hình thức xác thực:</span>
+                    <span class="value">Mã bảo mật OTP qua Email</span>
+                </div>
+            </div>
+
+            <div class="warning">
+                <strong>LƯU Ý BẢO MẬT:</strong> Tuyệt đối không cung cấp mã OTP này cho bất kỳ ai, kể cả nhân viên hỗ trợ ngân hàng hoặc nhà trường.
+            </div>
+        </div>
+        <div class="footer">
+            Đây là email tự động từ Phân hệ đóng học phí iBanking TDTU. Vui lòng không phản hồi thư này.
+        </div>
+    </div>
+</body>
+</html>

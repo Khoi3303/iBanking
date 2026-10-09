@@ -1,0 +1,208 @@
+services:
+  # ==========================================
+  # 1. CƠ SỞ DỮ LIỆU MYSQL (InnoDB Engines)
+  # ==========================================
+  mysql:
+    image: mysql:8.0
+    container_name: ibanking-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - ibanking-net
+
+  # ==========================================
+  # 2. REDIS (OTP Cache & Distributed Lock)
+  # ==========================================
+  redis:
+    image: redis:7-alpine
+    container_name: ibanking-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - ibanking-net
+
+  # ==========================================
+  # 3. MAILPIT (Mock SMTP & Web Mail Viewer)
+  # ==========================================
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: ibanking-mailpit
+    restart: always
+    ports:
+      - "1025:1025"  # Cổng SMTP
+      - "8025:8025"  # Giao diện Web xem thư
+    networks:
+      - ibanking-net
+
+  # ==========================================
+  # 4. USER & ACCOUNT SERVICE (Port 8001)
+  # ==========================================
+  user-service:
+    build:
+      context: ./src/backend/services/user-service
+      dockerfile: Dockerfile
+    container_name: ibanking-user-service
+    restart: always
+    ports:
+      - "8001:8001"
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: rootpassword
+      MYSQL_DATABASE: ibanking_user_db
+      INTERNAL_API_KEY: ibanking-internal-secret-token-2026
+      JWT_SECRET_KEY: ibanking-super-secret-key-tdtu-2026
+      JWT_ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 60
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - ibanking-net
+
+  # ==========================================
+  # 5. TDTU TUITION SERVICE (Port 8002)
+  # ==========================================
+  tuition-service:
+    build:
+      context: ./src/backend/services/tuition-service
+      dockerfile: Dockerfile
+    container_name: ibanking-tuition-service
+    restart: always
+    ports:
+      - "8002:8002"
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: rootpassword
+      MYSQL_DATABASE: tdtu_tuition_db
+      INTERNAL_API_KEY: ibanking-internal-secret-token-2026
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - ibanking-net
+
+  # ==========================================
+  # 6. PAYMENT & SAGA SERVICE (Port 8003)
+  # ==========================================
+  payment-service:
+    build:
+      context: ./src/backend/services/payment-service
+      dockerfile: Dockerfile
+    container_name: ibanking-payment-service
+    restart: always
+    ports:
+      - "8003:8003"
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: rootpassword
+      MYSQL_DATABASE: ibanking_payment_db
+      REDIS_URL: redis://redis:6379/0
+      INTERNAL_API_KEY: ibanking-internal-secret-token-2026
+      JWT_SECRET_KEY: ibanking-super-secret-key-tdtu-2026
+      JWT_ALGORITHM: HS256
+      OTP_EXPIRE_SECONDS: 300
+      USER_SERVICE_URL: http://user-service:8001
+      TUITION_SERVICE_URL: http://tuition-service:8002
+      NOTIFICATION_SERVICE_URL: http://notification-service:8004
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ibanking-net
+
+  # ==========================================
+  # 7. NOTIFICATION SERVICE (Port 8004)
+  # ==========================================
+  notification-service:
+    build:
+      context: ./src/backend/services/notification-service
+      dockerfile: Dockerfile
+    container_name: ibanking-notification-service
+    restart: always
+    ports:
+      - "8004:8004"
+    environment:
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_FROM_EMAIL: support@ibanking.tdtu.edu.vn
+      SMTP_FROM_NAME: "iBanking TDTU Support"
+      INTERNAL_API_KEY: ibanking-internal-secret-token-2026
+    depends_on:
+      - mailpit
+    networks:
+      - ibanking-net
+
+  # ==========================================
+  # 8. API GATEWAY (Port 8000)
+  # ==========================================
+  api-gateway:
+    build:
+      context: ./src/backend/api-gateway
+      dockerfile: Dockerfile
+    container_name: ibanking-api-gateway
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      PORT: 8000
+      INTERNAL_API_KEY: ibanking-internal-secret-token-2026
+      JWT_SECRET_KEY: ibanking-super-secret-key-tdtu-2026
+      JWT_ALGORITHM: HS256
+      USER_SERVICE_URL: http://user-service:8001
+      TUITION_SERVICE_URL: http://tuition-service:8002
+      PAYMENT_SERVICE_URL: http://payment-service:8003
+      NOTIFICATION_SERVICE_URL: http://notification-service:8004
+    depends_on:
+      - user-service
+      - tuition-service
+      - payment-service
+    networks:
+      - ibanking-net
+
+  # ==========================================
+  # 9. FRONTEND WEB APPLICATION (Port 3000)
+  # ==========================================
+  frontend:
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile
+    container_name: ibanking-frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - ibanking-net
+
+volumes:
+  mysql_data:
+
+networks:
+  ibanking-net:
+    driver: bridge

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Thông Báo Hoàn Tiền Giao Dịch Học Phí iBanking</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+        .header { background: linear-gradient(135deg, #c0392b, #962d22); color: #ffffff; padding: 30px 24px; text-align: center; }
+        .header h1 { margin: 0; font-size: 22px; font-weight: 700; }
+        .header p { margin: 4px 0 0 0; opacity: 0.9; font-size: 14px; }
+        .content { padding: 30px 24px; }
+        .refund-card { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; text-align: center; padding: 18px; margin-bottom: 24px; }
+        .refund-title { font-size: 13px; color: #991b1b; text-transform: uppercase; font-weight: 600; }
+        .refund-val { font-size: 32px; font-weight: 800; color: #dc2626; margin-top: 4px; }
+        .status-badge { display: inline-block; background: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 12px; }
+        .details { background: #fdfdfd; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+        .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+        .detail-row:last-child { border-bottom: none; }
+        .label { color: #64748b; }
+        .value { font-weight: 600; color: #0f172a; }
+        .reason-box { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 4px; font-size: 13px; color: #92400e; margin-bottom: 20px; }
+        .footer { background: #f8fafc; text-align: center; padding: 20px; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>THÔNG BÁO HOÀN TIỀN</h1>
+            <p>Giao dịch thanh toán học phí không thành công</p>
+        </div>
+        <div class="content">
+            <p>Kính chào <strong>{{ recipient_name }}</strong>,</p>
+            <p>Hệ thống xin thông báo giao dịch thanh toán học phí cho sinh viên MSSV <strong>{{ student_code }}</strong> đã không thể hoàn tất.</p>
+
+            <div class="reason-box">
+                <strong>Lý do từ chối:</strong> {{ reason }}
+            </div>
+
+            <div class="refund-card">
+                <div class="refund-title">Số tiền đã hoàn lại vào ví</div>
+                <div class="refund-val">+{{ amount | currency }}</div>
+                <div style="margin-top: 8px;"><span class="status-badge">ĐÃ HOÀN TIỀN VÀO SỐ DƯ TÀI KHOẢN</span></div>
+            </div>
+
+            <div class="details">
+                <div class="detail-row">
+                    <span class="label">Mã giao dịch (TxID):</span>
+                    <span class="value" style="font-family: monospace; font-size: 12px;">{{ transaction_id }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Mã số sinh viên:</span>
+                    <span class="value">{{ student_code }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Trạng thái hoàn tiền:</span>
+                    <span class="value" style="color: #16a34a;">Thành công (100%)</span>
+                </div>
+            </div>
+
+            <p style="font-size: 13px; color: #64748b; line-height: 1.6;">
+                Bạn có thể mở ứng dụng iBanking để kiểm tra lại số dư khả dụng và lịch sử biến động số dư. Nếu cần thêm hỗ trợ, vui lòng liên hệ phòng Đào tạo TDTU hoặc hỗ trợ kỹ thuật iBanking.
+            </p>
+        </div>
+        <div class="footer">
+            Phân hệ đóng học phí iBanking - Trường Đại học Tôn Đức Thắng (TDTU).
+        </div>
+    </div>
+</body>
+</html>

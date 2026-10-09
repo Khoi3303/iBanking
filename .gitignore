@@ -1,0 +1,52 @@
+# ========================================================
+# Git Ignore - iBanking Microservices (SOA - TDTU)
+# ========================================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Caches
+.pytest_cache/
+.coverage
+htmlcov/
+.cache/
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment Variables & Secrets
+# (Giữ lại .env.example để chia sẻ cấu hình mẫu)
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Temporary files & debug scripts
+fix.sql
+*.log
+logs/
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Operating System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# AI Agent & Antigravity IDE local cache
+.agents/
+.gemini/
