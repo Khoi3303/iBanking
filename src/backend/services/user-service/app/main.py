@@ -49,7 +49,7 @@ async def startup_event():
 
         async with AsyncSessionLocal() as session:
             demo_users = [
-                ("nguyenvana", "Nguyễn Văn A", "0901234567", "nguyenvana@gmail.com", Decimal("20000000.00")),
+                ("nguyenvana", "Nguyễn Văn A", "0901234567", "khoi18042006@gmail.com", Decimal("20000000.00")),
                 ("tranthib", "Trần Thị B", "0912345678", "tranthib@gmail.com", Decimal("15000000.00")),
                 ("lethanhc", "Lê Thành C", "0987654321", "lethanhc@gmail.com", Decimal("5000000.00")),
             ]
@@ -67,6 +67,8 @@ async def startup_event():
                         balance=balance
                     )
                     session.add(new_user)
+                else:
+                    user.email = email
             await session.commit()
     except Exception as e:
         print(f"Startup seed notice: {e}")

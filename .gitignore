@@ -22,16 +22,11 @@ ENV/
 env.bak/
 venv.bak/
 
-# Environment Variables & Secrets
-# (Giữ lại .env.example để chia sẻ cấu hình mẫu)
-.env
-.env.local
-.env.*.local
+# (File .env và cấu hình đã được cho phép commit để nhóm làm chung chạy ngay)
 *.pem
 *.key
 
-# Temporary files & debug scripts
-fix.sql
+# Temporary logs
 *.log
 logs/
 

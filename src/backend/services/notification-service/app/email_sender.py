@@ -54,7 +54,7 @@ async def send_email_async(to_email: str, subject: str, html_content: str, max_r
                 username=settings.SMTP_USER if settings.SMTP_USER else None,
                 password=settings.SMTP_PASSWORD if settings.SMTP_PASSWORD else None,
                 start_tls=settings.USE_TLS,
-                timeout=10.0
+                timeout=25.0
             )
             logger.info(f"Đã gửi email thành công tới {to_email} (Lần thử {attempt}): '{subject}'")
             return True

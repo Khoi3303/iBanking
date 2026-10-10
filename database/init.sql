@@ -48,7 +48,7 @@ CREATE TABLE account_transactions (
 -- Dữ liệu mẫu người dùng iBanking (Mật khẩu mặc định: 123456 -> bcrypt hash)
 -- bcrypt hash for '123456': $2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe
 INSERT INTO users (id, username, password_hash, full_name, phone_number, email, balance) VALUES
-(1, 'nguyenvana', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Nguyễn Văn A', '0901234567', 'nguyenvana@gmail.com', 20000000.00),
+(1, 'nguyenvana', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Nguyễn Văn A', '0901234567', 'khoi18042006@gmail.com', 20000000.00),
 (2, 'tranthib', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Trần Thị B', '0912345678', 'tranthib@gmail.com', 15000000.00),
 (3, 'lethanhc', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Lê Thành C', '0987654321', 'lethanhc@gmail.com', 5000000.00);
 

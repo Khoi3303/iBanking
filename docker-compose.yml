@@ -147,10 +147,13 @@ services:
     ports:
       - "8004:8004"
     environment:
-      SMTP_HOST: mailpit
-      SMTP_PORT: 1025
-      SMTP_FROM_EMAIL: support@ibanking.tdtu.edu.vn
-      SMTP_FROM_NAME: "iBanking TDTU Support"
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-khoi18042006@gmail.com}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-dhvxjdlkjnpirgli}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-khoi18042006@gmail.com}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-iBanking TDTU Support}
+      USE_TLS: ${USE_TLS:-true}
       INTERNAL_API_KEY: ibanking-internal-secret-token-2026
     depends_on:
       - mailpit
