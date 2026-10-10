@@ -7,6 +7,31 @@ class LoginRequest(BaseModel):
     username: str = Field(..., example="nguyenvana", description="Tên đăng nhập")
     password: str = Field(..., example="123456", description="Mật khẩu")
 
+class RegisterRequest(BaseModel):
+    username: str = Field(..., example="tranvanb", description="Tên đăng nhập")
+    password: str = Field(..., example="123456", description="Mật khẩu")
+    full_name: str = Field(..., example="Trần Văn B", description="Họ và tên")
+    phone_number: str = Field(..., example="0912345678", description="Số điện thoại")
+    email: str = Field(..., example="tranvanb@gmail.com", description="Email cá nhân")
+    balance: Optional[Decimal] = Field(Decimal("0.00"), description="Số dư ban đầu (Mặc định: 0đ)")
+
+class DepositRequest(BaseModel):
+    amount: Decimal = Field(
+        ...,
+        gt=0,
+        le=Decimal("500000000.00"),
+        example=10000000.00,
+        description="Số tiền cần nạp, tối thiểu 1 VNĐ và tối đa 500,000,000 VNĐ"
+    )
+    description: Optional[str] = Field("Nạp tiền vào tài khoản iBanking", max_length=255, description="Mô tả nạp tiền")
+
+class DepositResponse(BaseModel):
+    success: bool
+    user_id: int
+    deposited_amount: Decimal
+    new_balance: Decimal
+    message: str
+
 class UserProfileResponse(BaseModel):
     id: int
     username: str

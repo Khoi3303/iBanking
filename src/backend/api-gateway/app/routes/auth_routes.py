@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, status
 from app.config import settings
 from app.proxy import forward_request
-from app.schemas import LoginRequest, TokenResponse
+from app.schemas import LoginRequest, RegisterRequest, TokenResponse
 
 router = APIRouter(prefix="/api/auth", tags=["1. Authentication & Security"])
 
@@ -18,3 +18,19 @@ async def login(req: LoginRequest, request: Request):
     """
     target_url = f"{settings.USER_SERVICE_URL}/auth/login"
     return await forward_request(target_url, request)
+
+
+@router.post(
+    "/register",
+    response_model=TokenResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Đăng ký tài khoản iBanking mới"
+)
+async def register(req: RegisterRequest, request: Request):
+    """
+    Đăng ký tài khoản mới và chuyển tiếp sang User Service.
+    Tự động cấp JWT Access Token và đăng nhập ngay.
+    """
+    target_url = f"{settings.USER_SERVICE_URL}/auth/register"
+    return await forward_request(target_url, request)
+

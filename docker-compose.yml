@@ -198,6 +198,8 @@ services:
     restart: always
     ports:
       - "3000:80"
+    volumes:
+      - ./src/frontend:/usr/share/nginx/html
     depends_on:
       - api-gateway
     networks:

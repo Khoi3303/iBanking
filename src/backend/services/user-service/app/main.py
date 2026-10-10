@@ -6,15 +6,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.schemas import (
-    LoginRequest, TokenResponse, UserProfileResponse,
+    LoginRequest, RegisterRequest, TokenResponse, UserProfileResponse,
     DeductBalanceRequest, DeductBalanceResponse,
     RefundBalanceRequest, RefundBalanceResponse,
-    AccountTransactionResponse
+    AccountTransactionResponse, DepositRequest, DepositResponse
 )
 from app.services import (
-    authenticate_user, get_user_by_id,
+    authenticate_user, create_user, get_user_by_id,
     deduct_user_balance, refund_user_balance,
-    get_user_transactions
+    get_user_transactions, deposit_user_balance
 )
 from app.security import create_access_token, decode_access_token
 
@@ -137,6 +137,25 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
     }
 
 
+@app.post("/auth/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED, tags=["Authentication"])
+async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Đăng ký tài khoản iBanking mới.
+    Người dùng tự nhập username, mật khẩu, họ tên, số điện thoại và email cá nhân thật.
+    Tự động cấp Access Token và đăng nhập ngay sau khi tạo tài khoản.
+    """
+    user = await create_user(db, req)
+
+    # Tự động sinh Access Token để người dùng đăng nhập ngay lập tức
+    access_token = create_access_token(data={"sub": str(user.id), "username": user.username, "email": user.email})
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": user
+    }
+
+
 @app.get("/users/me", response_model=UserProfileResponse, tags=["Users"])
 async def get_my_profile(current_user = Depends(get_current_user)):
     """Lấy thông tin cá nhân và số dư khả dụng của tài khoản đang đăng nhập."""
@@ -155,6 +174,33 @@ async def get_my_transactions(
     """
     transactions = await get_user_transactions(db=db, user_id=current_user.id, limit=limit)
     return transactions
+
+
+@app.post("/users/me/deposit", response_model=DepositResponse, tags=["Users"])
+async def deposit_money(
+    req: DepositRequest,
+    current_user = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Nạp tiền vào tài khoản iBanking của người dùng hiện tại:
+    - Cộng tiền nguyên tử vào số dư với cơ chế hàng đợi / khóa dòng.
+    - Ghi nhận lịch sử giao dịch CREDIT.
+    """
+    prev_balance, new_balance = await deposit_user_balance(
+        db=db,
+        user_id=current_user.id,
+        amount=req.amount,
+        description=req.description
+    )
+
+    return {
+        "success": True,
+        "user_id": current_user.id,
+        "deposited_amount": req.amount,
+        "new_balance": new_balance,
+        "message": f"Nạp thành công {req.amount:,.0f} VNĐ vào tài khoản iBanking."
+    }
 
 
 # ========================================================

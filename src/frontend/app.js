@@ -61,6 +61,12 @@ function initEventListeners() {
         loginForm.addEventListener("submit", handleLoginSubmit);
     }
 
+    // Form Register
+    const registerForm = document.getElementById("registerForm");
+    if (registerForm) {
+        registerForm.addEventListener("submit", handleRegisterSubmit);
+    }
+
     // Nút đăng xuất
     const btnLogout = document.getElementById("btnLogout");
     if (btnLogout) {
@@ -158,6 +164,76 @@ async function handleLoginSubmit(e) {
     } finally {
         btnLogin.disabled = false;
         btnLogin.querySelector(".spinner").classList.add("hidden");
+    }
+}
+
+function switchAuthTab(tab) {
+    const tabLogin = document.getElementById("tabLogin");
+    const tabRegister = document.getElementById("tabRegister");
+    const loginSection = document.getElementById("loginSection");
+    const registerSection = document.getElementById("registerSection");
+
+    if (tab === "register") {
+        tabLogin.classList.remove("active");
+        tabRegister.classList.add("active");
+        loginSection.classList.add("hidden");
+        registerSection.classList.remove("hidden");
+    } else {
+        tabRegister.classList.remove("active");
+        tabLogin.classList.add("active");
+        registerSection.classList.add("hidden");
+        loginSection.classList.remove("hidden");
+    }
+}
+
+async function handleRegisterSubmit(e) {
+    e.preventDefault();
+    const full_name = document.getElementById("regFullName").value.trim();
+    const email = document.getElementById("regEmail").value.trim();
+    const username = document.getElementById("regUsername").value.trim();
+    const phone_number = document.getElementById("regPhone").value.trim();
+    const password = document.getElementById("regPassword").value;
+    const balance = 0; // Mặc định 0 VNĐ khi đăng ký mới
+
+    const btnRegister = document.getElementById("btnRegister");
+    btnRegister.disabled = true;
+    btnRegister.querySelector(".spinner").classList.remove("hidden");
+
+    try {
+        const resp = await fetch(`${API_BASE_URL}/auth/register`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                username,
+                password,
+                full_name,
+                phone_number,
+                email,
+                balance
+            })
+        });
+
+        const data = await resp.json();
+
+        if (!resp.ok) {
+            throw new Error(data.detail || "Đăng ký không thành công.");
+        }
+
+        state.token = data.access_token;
+        state.currentUser = data.user;
+        localStorage.setItem("ibanking_token", state.token);
+
+        renderUserInfo(state.currentUser);
+        showMainScreen();
+        showToast(`Đăng ký thành công! Chào mừng ${data.user.full_name}`, "success");
+
+        // Tự động tìm kiếm MSSV mẫu đầu tiên
+        searchStudentTuition();
+    } catch (err) {
+        showToast(err.message, "error");
+    } finally {
+        btnRegister.disabled = false;
+        btnRegister.querySelector(".spinner").classList.add("hidden");
     }
 }
 
@@ -289,11 +365,12 @@ function quickFillStudent(mssv) {
 function validatePaymentConditions() {
     const btnConfirm = document.getElementById("btnConfirmInitiate");
     const alertInsufficient = document.getElementById("insufficientBalanceAlert");
-    const termsAgreed = document.getElementById("agreeTermsCheckbox").checked;
+    const termsCheckbox = document.getElementById("agreeTermsCheckbox");
     const boxRemaining = document.getElementById("boxRemainingBalance");
 
     if (!state.currentUser || !state.currentTuition) {
         btnConfirm.disabled = true;
+        btnConfirm.classList.remove("btn-ready");
         alertInsufficient.classList.add("hidden");
         boxRemaining.textContent = "0 VND";
         return;
@@ -303,18 +380,20 @@ function validatePaymentConditions() {
     const tuitionAmount = Number(state.currentTuition.amount);
     const remainingBalance = userBalance - tuitionAmount;
 
-    // Tính toán số dư còn lại
+    // Tính toán số dư còn lại và style màu sắc
     if (state.currentTuition.status === "UNPAID") {
         boxRemaining.textContent = formatVND(remainingBalance);
+        boxRemaining.className = remainingBalance >= 0 ? "val text-success font-bold" : "val text-danger font-bold";
     } else {
         boxRemaining.textContent = formatVND(userBalance);
+        boxRemaining.className = "val text-success font-bold";
     }
 
     // RÀNG BUỘC THEO ĐỀ BÀI (Mục 2c):
     // 1. Khoản học phí tồn tại và chưa được thanh toán (status == UNPAID & can_pay == true)
     // 2. Số dư khả dụng của người nộp >= số tiền cần thanh toán
     // 3. Đã đồng ý điều khoản
-    const isUnpaid = state.currentTuition.status === "UNPAID" && state.currentTuition.can_pay === true;
+    const isUnpaid = state.currentTuition.status === "UNPAID" && (state.currentTuition.can_pay !== false);
     const isBalanceEnough = userBalance >= tuitionAmount;
 
     if (isUnpaid && !isBalanceEnough) {
@@ -323,10 +402,20 @@ function validatePaymentConditions() {
         alertInsufficient.classList.add("hidden");
     }
 
+    // Nếu đã đủ số dư để đóng học phí còn nợ, tự động tích chọn điều khoản nếu chưa tích
+    if (isUnpaid && isBalanceEnough && termsCheckbox && !termsCheckbox.checked) {
+        termsCheckbox.checked = true;
+    }
+
+    const termsAgreed = termsCheckbox ? termsCheckbox.checked : false;
+
     if (isUnpaid && isBalanceEnough && termsAgreed) {
         btnConfirm.disabled = false;
+        btnConfirm.textContent = "Xác nhận giao dịch";
+        btnConfirm.classList.add("btn-ready");
     } else {
         btnConfirm.disabled = true;
+        btnConfirm.classList.remove("btn-ready");
     }
 }
 
@@ -614,3 +703,110 @@ function showTermsModal(e) {
 function closeTermsModal() {
     document.getElementById("termsModal").classList.add("hidden");
 }
+
+// ========================================================
+// 5. NẠP TIỀN VÀO TÀI KHOẢN (DEPOSIT)
+// ========================================================
+function openDepositModal() {
+    if (!state.currentUser) return;
+    document.getElementById("depositCurrentBalance").textContent = formatVND(state.currentUser.balance);
+
+    // Tính toán số tiền gợi ý: Nếu đang xem học phí chưa đủ tiền, tự động điền phần còn thiếu
+    let suggestedAmount = 15000000;
+    if (state.currentTuition && state.currentTuition.status === "UNPAID") {
+        const needed = Number(state.currentTuition.amount) - Number(state.currentUser.balance);
+        if (needed > 0) {
+            suggestedAmount = needed;
+        }
+    }
+    document.getElementById("depositAmountInput").value = suggestedAmount;
+    document.getElementById("depositErrorAlert").classList.add("hidden");
+    document.getElementById("depositModal").classList.remove("hidden");
+    setTimeout(() => {
+        const inp = document.getElementById("depositAmountInput");
+        if (inp) {
+            inp.focus();
+            inp.select();
+        }
+    }, 100);
+}
+
+function closeDepositModal() {
+    document.getElementById("depositModal").classList.add("hidden");
+}
+
+function setDepositAmount(amount) {
+    document.getElementById("depositAmountInput").value = amount;
+}
+
+async function handleDepositSubmit(e) {
+    e.preventDefault();
+    const amountVal = parseFloat(document.getElementById("depositAmountInput").value);
+    const desc = document.getElementById("depositDescInput").value.trim() || "Nạp tiền vào tài khoản iBanking";
+    const errorAlert = document.getElementById("depositErrorAlert");
+    const btnSubmit = document.getElementById("btnSubmitDeposit");
+    const MAX_DEPOSIT = 500000000;
+
+    if (isNaN(amountVal) || amountVal <= 0) {
+        errorAlert.textContent = "Vui lòng nhập số tiền nạp hợp lệ (> 0 VNĐ).";
+        errorAlert.classList.remove("hidden");
+        return;
+    }
+
+    if (amountVal > MAX_DEPOSIT) {
+        errorAlert.textContent = `Số tiền nạp tối đa là ${formatVND(MAX_DEPOSIT)} cho mỗi giao dịch.`;
+        errorAlert.classList.remove("hidden");
+        return;
+    }
+
+    btnSubmit.disabled = true;
+    btnSubmit.querySelector(".spinner").classList.remove("hidden");
+    errorAlert.classList.add("hidden");
+
+    try {
+        const resp = await fetch(`${API_BASE_URL}/users/me/deposit`, {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                amount: amountVal,
+                description: desc
+            })
+        });
+
+        const data = await resp.json();
+
+        if (!resp.ok) {
+            throw new Error(data.detail || "Nạp tiền không thành công.");
+        }
+
+        // Cập nhật state số dư
+        state.currentUser.balance = data.new_balance;
+        renderUserInfo(state.currentUser);
+
+        // ĐỒNG BỘ TRẠNG THÁI THANH TOÁN:
+        // Nếu màn hình tra cứu đang mở sẵn một sinh viên có nợ, kích hoạt lại điều kiện
+        // để nút Xác nhận giao dịch tự động sáng lên ngay mà không bắt gõ lại MSSV!
+        if (state.currentTuition && state.currentTuition.status === "UNPAID") {
+            const termsCheckbox = document.getElementById("agreeTermsCheckbox");
+            if (termsCheckbox) {
+                termsCheckbox.checked = true;
+            }
+            validatePaymentConditions();
+        }
+
+        closeDepositModal();
+        showToast(`🎉 Nạp thành công ${formatVND(amountVal)}! Số dư mới: ${formatVND(data.new_balance)}. Nút xác nhận thanh toán đã sẵn sàng!`, "success");
+
+        // Nếu đang ở tab lịch sử, tải lại lịch sử
+        if (!document.getElementById("historyTab").classList.contains("hidden")) {
+            loadTransactionHistory();
+        }
+    } catch (err) {
+        errorAlert.textContent = err.message;
+        errorAlert.classList.remove("hidden");
+    } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.querySelector(".spinner").classList.add("hidden");
+    }
+}
+

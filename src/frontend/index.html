@@ -3,12 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>iBanking - Phân hệ Đóng học phí TDTU</title>
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
     <div id="app">
@@ -29,37 +32,91 @@
                         <p class="subtitle">Hệ thống Ngân hàng số & Thanh toán học phí</p>
                     </div>
 
-                    <form id="loginForm">
-                        <div class="form-group">
-                            <label for="loginUsername">Tên đăng nhập (Username)</label>
-                            <input type="text" id="loginUsername" placeholder="Nhập username" required value="nguyenvana">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="loginPassword">Mật khẩu</label>
-                            <input type="password" id="loginPassword" placeholder="Nhập mật khẩu" required value="123456">
-                        </div>
-
-                        <button type="submit" id="btnLogin" class="btn btn-primary btn-block">
-                            <span class="btn-text">Đăng nhập hệ thống</span>
-                            <span class="spinner hidden"></span>
+                    <!-- TAB CHUYỂN ĐĂNG NHẬP / ĐĂNG KÝ -->
+                    <div class="auth-tabs">
+                        <button type="button" id="tabLogin" class="auth-tab active" onclick="switchAuthTab('login')">
+                            Đăng nhập
                         </button>
-                    </form>
+                        <button type="button" id="tabRegister" class="auth-tab" onclick="switchAuthTab('register')">
+                            Đăng ký tài khoản
+                        </button>
+                    </div>
 
-                    <!-- QUICK DEMO SELECTION -->
-                    <div class="demo-accounts">
-                        <p class="demo-title">⚡ Chọn nhanh tài khoản demo (Đã seed sẵn):</p>
-                        <div class="demo-chips">
-                            <button type="button" class="chip" onclick="quickFillUser('nguyenvana', '20.000.000đ')">
-                                <strong>Nguyễn Văn A</strong> (20tr)
+                    <!-- FORM ĐĂNG NHẬP -->
+                    <div id="loginSection">
+                        <form id="loginForm">
+                            <div class="form-group">
+                                <label for="loginUsername">Tên đăng nhập (Username)</label>
+                                <input type="text" id="loginUsername" placeholder="Nhập username" required value="nguyenvana">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="loginPassword">Mật khẩu</label>
+                                <input type="password" id="loginPassword" placeholder="Nhập mật khẩu" required value="123456">
+                            </div>
+
+                            <button type="submit" id="btnLogin" class="btn btn-primary btn-block">
+                                <span class="btn-text">Đăng nhập hệ thống</span>
+                                <span class="spinner hidden"></span>
                             </button>
-                            <button type="button" class="chip" onclick="quickFillUser('tranthib', '15.000.000đ')">
-                                <strong>Trần Thị B</strong> (15tr)
-                            </button>
-                            <button type="button" class="chip" onclick="quickFillUser('lethanhc', '5.000.000đ')">
-                                <strong>Lê Thành C</strong> (5tr - Test thiếu tiền)
-                            </button>
+                        </form>
+
+                        <!-- QUICK DEMO SELECTION -->
+                        <div class="demo-accounts">
+                            <p class="demo-title">⚡ Chọn nhanh tài khoản demo (Đã seed sẵn):</p>
+                            <div class="demo-chips">
+                                <button type="button" class="chip" onclick="quickFillUser('nguyenvana', '20.000.000đ')">
+                                    <strong>Nguyễn Văn A</strong> (20tr)
+                                </button>
+                                <button type="button" class="chip" onclick="quickFillUser('tranthib', '15.000.000đ')">
+                                    <strong>Trần Thị B</strong> (15tr)
+                                </button>
+                                <button type="button" class="chip" onclick="quickFillUser('lethanhc', '5.000.000đ')">
+                                    <strong>Lê Thành C</strong> (5tr - Test thiếu tiền)
+                                </button>
+                            </div>
                         </div>
+                    </div>
+
+                    <!-- FORM ĐĂNG KÝ TÀI KHOẢN MỚI -->
+                    <div id="registerSection" class="hidden">
+                        <form id="registerForm">
+                            <div class="form-group">
+                                <label for="regFullName">Họ và tên chủ tài khoản</label>
+                                <input type="text" id="regFullName" placeholder="Ví dụ: Lê Hoàng Minh Khôi" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="regEmail">Email cá nhân (Nhận mã OTP & Biên lai)</label>
+                                <input type="email" id="regEmail" placeholder="khoi18042006@gmail.com" required>
+                                <small class="form-hint">Mã OTP và hóa đơn học phí sẽ gửi trực tiếp về email này</small>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group col-6">
+                                    <label for="regUsername">Tên đăng nhập</label>
+                                    <input type="text" id="regUsername" placeholder="minhkhoi" required>
+                                </div>
+                                <div class="form-group col-6">
+                                    <label for="regPhone">Số điện thoại</label>
+                                    <input type="text" id="regPhone" placeholder="0901234567" required>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="regPassword">Mật khẩu</label>
+                                <input type="password" id="regPassword" placeholder="Tối thiểu 6 ký tự" required value="123456">
+                            </div>
+
+                            <p class="text-xs text-muted text-center" style="margin-bottom: 14px;">
+                                🔒 Tài khoản mới mở mặc định có <strong>0 VNĐ</strong>. Bạn có thể nạp tiền bất cứ lúc nào.
+                            </p>
+
+                            <button type="submit" id="btnRegister" class="btn btn-primary btn-block">
+                                <span class="btn-text">Đăng ký & Vào hệ thống</span>
+                                <span class="spinner hidden"></span>
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -85,6 +142,9 @@
                                 <span class="user-balance-badge" id="navUserBalance">Số dư: 20,000,000 VND</span>
                             </div>
                         </div>
+                        <button type="button" id="btnNavDeposit" class="btn btn-success btn-sm" onclick="openDepositModal()" title="Nạp tiền vào tài khoản">
+                            + Nạp tiền
+                        </button>
                         <button id="btnLogout" class="btn btn-outline-danger btn-sm" title="Đăng xuất">
                             Đăng xuất
                         </button>
@@ -222,7 +282,10 @@
 
                                     <!-- CẢNH BÁO SỐ DƯ NẾU KHÔNG ĐỦ TIỀN -->
                                     <div id="insufficientBalanceAlert" class="alert alert-danger hidden mt-3">
-                                        ❌ <strong>Số dư không đủ:</strong> Tài khoản của bạn không đủ số dư để đóng khoản học phí này.
+                                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                                            <span>❌ <strong>Số dư không đủ:</strong> Vui lòng nạp thêm tiền.</span>
+                                            <button type="button" class="btn btn-sm btn-danger-pill" onclick="openDepositModal()">+ Nạp tiền ngay</button>
+                                        </div>
                                     </div>
 
                                     <!-- ĐIỀU KHOẢN VÀ THỎA THUẬN -->
@@ -378,9 +441,61 @@
             </div>
         </div>
 
+        <!-- ========================================== -->
+        <!-- MODAL: NẠP TIỀN VÀO TÀI KHOẢN -->
+        <!-- ========================================== -->
+        <div id="depositModal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3>💰 Nạp tiền vào tài khoản iBanking</h3>
+                    <button class="close-btn" onclick="closeDepositModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="deposit-balance-preview">
+                        <span class="text-muted text-sm">Số dư hiện tại của bạn:</span>
+                        <div class="deposit-current-val font-bold text-primary text-lg" id="depositCurrentBalance">0 VND</div>
+                    </div>
+
+                    <form id="depositForm" onsubmit="handleDepositSubmit(event)">
+                        <div class="form-group mt-3">
+                            <label>Chọn nhanh mệnh giá nạp:</label>
+                            <div class="deposit-quick-chips">
+                                <button type="button" class="chip" onclick="setDepositAmount(5000000)">+ 5.000.000đ</button>
+                                <button type="button" class="chip" onclick="setDepositAmount(10000000)">+ 10.000.000đ</button>
+                                <button type="button" class="chip" onclick="setDepositAmount(15000000)">+ 15.000.000đ</button>
+                                <button type="button" class="chip" onclick="setDepositAmount(20000000)">+ 20.000.000đ</button>
+                                <button type="button" class="chip" onclick="setDepositAmount(50000000)">+ 50.000.000đ</button>
+                            </div>
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <label for="depositAmountInput">Số tiền nạp (VNĐ)</label>
+                            <input type="number" id="depositAmountInput" min="10000" max="500000000" step="10000" placeholder="Nhập số tiền (VD: 15000000)" required>
+                            <small class="form-hint">Tối thiểu: 10.000 VNĐ - Tối đa: 500.000.000 VNĐ / lần nạp</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="depositDescInput">Nội dung nạp tiền</label>
+                            <input type="text" id="depositDescInput" value="Nạp tiền vào tài khoản iBanking">
+                        </div>
+
+                        <div id="depositErrorAlert" class="alert alert-danger hidden mt-3"></div>
+
+                        <div class="modal-footer" style="padding-left:0; padding-right:0; margin-bottom:-10px;">
+                            <button type="button" class="btn btn-secondary" onclick="closeDepositModal()">Hủy</button>
+                            <button type="submit" id="btnSubmitDeposit" class="btn btn-success">
+                                <span class="btn-text">Xác nhận nạp tiền</span>
+                                <span class="spinner hidden"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- SCRIPT CHÍNH -->
-    <script src="app.js"></script>
+    <script src="app.js?v=2"></script>
 </body>
 </html>
