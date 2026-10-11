@@ -24,9 +24,11 @@ docker compose ps
 echo.
 echo ========================================================
 echo   HỆ THỐNG ĐÃ SẴN SÀNG!
-echo   - Giao diện người dùng: http://localhost:3000
-echo   - Tài khoản mẫu: nguyenvana
-echo   - Mật khẩu: 123456
-echo   - Hòm thư xem OTP (Mailpit): http://localhost:8025
+echo   - Giao diện: http://localhost:3000
+echo   - Tài khoản 1: nguyenvana     (khoi18042006@gmail.com)   | MK: 123456 | 20tr VNĐ
+echo   - Tài khoản 2: lekhoi3303     (lekhoi3303@gmail.com)     | MK: 123456 | 20tr VNĐ
+echo   - Tài khoản 3: tienmobile2006 (tienmobile2006@gmail.com) | MK: 123456 | 20tr VNĐ
+echo   - Tài khoản 4: mensieu123     (Mensieu123@gmail.com)     | MK: 123456 | 20tr VNĐ
+echo   - Mã OTP được gửi trực tiếp đến Gmail thật (Kiểm tra Inbox / Spam)
 echo ========================================================
 pause

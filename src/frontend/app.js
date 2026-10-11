@@ -193,7 +193,7 @@ async function handleRegisterSubmit(e) {
     const username = document.getElementById("regUsername").value.trim();
     const phone_number = document.getElementById("regPhone").value.trim();
     const password = document.getElementById("regPassword").value;
-    const balance = 0; // Mặc định 0 VNĐ khi đăng ký mới
+    const balance = 20000000; // Tặng sẵn 20.000.000 VNĐ để người dùng test ngay tính năng thanh toán học phí
 
     const btnRegister = document.getElementById("btnRegister");
     btnRegister.disabled = true;
@@ -225,7 +225,7 @@ async function handleRegisterSubmit(e) {
 
         renderUserInfo(state.currentUser);
         showMainScreen();
-        showToast(`Đăng ký thành công! Chào mừng ${data.user.full_name}`, "success");
+        showToast(`Đăng ký thành công! Số dư khởi tạo: 20.000.000 VNĐ. Chào mừng ${data.user.full_name}`, "success");
 
         // Tự động tìm kiếm MSSV mẫu đầu tiên
         searchStudentTuition();
@@ -341,13 +341,13 @@ function renderTuitionResult(tuition) {
     const banner = document.getElementById("tuitionStatusBanner");
     if (tuition.status === "UNPAID") {
         banner.className = "status-banner unpaid";
-        banner.textContent = `⚠️ Khoản nợ còn phải thanh toán cho học kỳ ${tuition.semester}.`;
+        banner.textContent = `Khoản nợ còn phải thanh toán cho học kỳ ${tuition.semester}.`;
     } else if (tuition.status === "PAID") {
         banner.className = "status-banner paid";
-        banner.textContent = `✓ ${tuition.message}`;
+        banner.textContent = tuition.message;
     } else {
         banner.className = "status-banner nodebt";
-        banner.textContent = `ℹ️ ${tuition.message}`;
+        banner.textContent = tuition.message;
     }
 
     // Box số tiền cột C
@@ -461,8 +461,11 @@ async function initiatePayment() {
     }
 }
 
-function openOtpModal(emailMasked, seconds) {
-    document.getElementById("otpEmailMasked").textContent = emailMasked;
+function openOtpModal(userEmail, seconds) {
+    const emailElem = document.getElementById("otpEmail");
+    if (emailElem) {
+        emailElem.textContent = userEmail || "";
+    }
     document.getElementById("otpCodeInput").value = "";
     document.getElementById("otpErrorAlert").classList.add("hidden");
     document.getElementById("otpModal").classList.remove("hidden");
@@ -795,7 +798,7 @@ async function handleDepositSubmit(e) {
         }
 
         closeDepositModal();
-        showToast(`🎉 Nạp thành công ${formatVND(amountVal)}! Số dư mới: ${formatVND(data.new_balance)}. Nút xác nhận thanh toán đã sẵn sàng!`, "success");
+        showToast(`Nạp thành công ${formatVND(amountVal)}. Số dư mới: ${formatVND(data.new_balance)}.`, "success");
 
         // Nếu đang ở tab lịch sử, tải lại lịch sử
         if (!document.getElementById("historyTab").classList.contains("hidden")) {

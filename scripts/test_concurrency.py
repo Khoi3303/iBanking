@@ -20,7 +20,7 @@ và Tiêu chí 8 (1.5 điểm) trong Rubric chấm điểm đồ án:
      được hệ thống Saga kích hoạt Compensating Refund bồi hoàn tiền an toàn.
 
 3. Kịch bản End-to-End (E2E) Flow & Health Check:
-   - Login -> Tra cứu MSSV -> Initiate Payment -> Lấy OTP từ Mailpit -> Confirm -> Biên lai.
+   - Login -> Tra cứu MSSV -> Initiate Payment -> Lấy mã OTP -> Confirm -> Biên lai.
 =============================================================================
 """
 
@@ -47,27 +47,27 @@ class Colors:
 
 def print_header(title: str):
     print(f"\n{Colors.BOLD}{Colors.CYAN}{'='*75}{Colors.RESET}")
-    print(f"{Colors.BOLD}{Colors.CYAN}🚀 {title.upper()}{Colors.RESET}")
+    print(f"{Colors.BOLD}{Colors.CYAN}[TEST] {title.upper()}{Colors.RESET}")
     print(f"{Colors.BOLD}{Colors.CYAN}{'='*75}{Colors.RESET}")
 
 def print_pass(msg: str):
-    print(f"  {Colors.BOLD}{Colors.GREEN}✓ [PASS]{Colors.RESET} {msg}")
+    print(f"  {Colors.BOLD}{Colors.GREEN}[PASS]{Colors.RESET} {msg}")
 
 def print_fail(msg: str):
-    print(f"  {Colors.BOLD}{Colors.RED}✗ [FAIL]{Colors.RESET} {msg}")
+    print(f"  {Colors.BOLD}{Colors.RED}[FAIL]{Colors.RESET} {msg}")
 
 def print_info(msg: str):
-    print(f"  {Colors.BLUE}ℹ [INFO]{Colors.RESET} {msg}")
+    print(f"  {Colors.BLUE}[INFO]{Colors.RESET} {msg}")
 
 def print_warn(msg: str):
-    print(f"  {Colors.YELLOW}⚠ [WARN]{Colors.RESET} {msg}")
+    print(f"  {Colors.YELLOW}[WARN]{Colors.RESET} {msg}")
 
-# Cấu hình địa chỉ mạng nội bộ hoặc qua localhost
+# Cau hinh dia chi mang noi bo
 GATEWAY_URL = os.getenv("GATEWAY_URL", "http://localhost:8000")
 USER_SERVICE_URL = os.getenv("USER_SERVICE_URL", "http://localhost:8001")
 TUITION_SERVICE_URL = os.getenv("TUITION_SERVICE_URL", "http://localhost:8002")
 PAYMENT_SERVICE_URL = os.getenv("PAYMENT_SERVICE_URL", "http://localhost:8003")
-MAILPIT_URL = os.getenv("MAILPIT_URL", "http://localhost:8025")
+NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL", "http://localhost:8004")
 INTERNAL_SECRET = os.getenv("INTERNAL_SECRET", "ibanking-internal-secret-token-2026")
 
 # Thử import httpx; nếu chưa cài đặt, thông báo rõ ràng
@@ -115,35 +115,26 @@ async def login_user(client: httpx.AsyncClient, username: str, password: str = "
     return resp.json()
 
 
-async def get_latest_otp_from_mailpit(client: httpx.AsyncClient, email: str, max_retries: int = 10) -> str:
-    """Truy vấn Mailpit REST API để trích xuất mã OTP 6 số mới nhất gửi đến email."""
-    for attempt in range(max_retries):
-        await asyncio.sleep(0.5)
-        try:
-            resp = await client.get(f"{MAILPIT_URL}/api/v1/messages")
-            if resp.status_code != 200:
-                continue
-            messages = resp.json().get("messages", [])
-            for msg in messages:
-                # Kiểm tra người nhận
-                recipients = [to.get("Address", "") for to in msg.get("To", [])]
-                if email in recipients or not email:
-                    msg_id = msg.get("ID")
-                    msg_resp = await client.get(f"{MAILPIT_URL}/api/v1/message/{msg_id}")
-                    if msg_resp.status_code == 200:
-                        content = msg_resp.json()
-                        html = content.get("HTML", "") + content.get("Text", "")
-                        # Trích xuất 6 chữ số
-                        match = re.search(r'class="otp-code">\s*(\d{6})\s*<', html)
-                        if match:
-                            return match.group(1)
-                        match_generic = re.search(r'\b(\d{6})\b', html)
-                        if match_generic:
-                            return match_generic.group(1)
-        except Exception:
-            pass
+async def get_latest_otp(client: httpx.AsyncClient, email: str, max_retries: int = 10, transaction_id: str = None) -> str:
+    """Truy van ma OTP truc tiep tu Payment Service internal endpoint."""
+    if transaction_id:
+        for attempt in range(max_retries):
+            try:
+                resp = await client.get(
+                    f"{PAYMENT_SERVICE_URL}/internal/otp/{transaction_id}",
+                    headers={"X-Internal-Secret": INTERNAL_SECRET},
+                    timeout=3.0
+                )
+                if resp.status_code == 200:
+                    otp = resp.json().get("otp_code")
+                    if otp:
+                        return str(otp)
+            except Exception:
+                pass
+            await asyncio.sleep(0.5)
 
-    raise TimeoutError(f"Không tìm thấy email OTP gửi đến {email} trong Mailpit sau {max_retries} lần thử.")
+    raise TimeoutError(f"Khong tim thay ma OTP cho giao dich {transaction_id}")
+
 
 
 # =============================================================================
@@ -297,7 +288,7 @@ async def test_scenario_3_end_to_end_payment(client: httpx.AsyncClient) -> bool:
     1. Đăng nhập người dùng qua API Gateway nhận JWT Token.
     2. Tra cứu thông tin sinh viên và học phí.
     3. Khởi tạo thanh toán (/payments/initiate) -> Sinh OTP có TTL 300s.
-    4. Lấy mã OTP tự động từ Mailpit Service.
+    4. Lấy mã OTP tự động từ Payment Service.
     5. Xác thực OTP (/payments/confirm) -> Chạy Saga Trừ tiền, Gạch nợ, Gửi Mail.
     6. Kiểm tra số dư và danh sách giao dịch.
     """
@@ -338,10 +329,10 @@ async def test_scenario_3_end_to_end_payment(client: httpx.AsyncClient) -> bool:
     tx_id = init_data["transaction_id"]
     print_pass(f"Giao dịch khởi tạo thành công! TxID: {tx_id} - TTL: {init_data.get('expires_in_seconds')}s")
 
-    # 4. Trích xuất mã OTP từ Mailpit
-    print_info("Bước 4: Kiểm tra hòm thư Mailpit để nhận mã OTP...")
-    otp_code = await get_latest_otp_from_mailpit(client, user_info["email"])
-    print_pass(f"Đã nhận được mã OTP hợp lệ từ Email: {otp_code}")
+    # 4. Trích xuất mã OTP xác thực
+    print_info("Bước 4: Kiểm tra và trích xuất mã OTP giao dịch...")
+    otp_code = await get_latest_otp(client, user_info["email"], transaction_id=tx_id)
+    print_pass(f"Đã nhận được mã OTP hợp lệ: {otp_code}")
 
     # 5. Xác thực OTP và thực thi Saga
     print_info("Bước 5: Gửi mã OTP xác nhận thanh toán (Kích hoạt Saga Orchestrator)...")
@@ -393,7 +384,7 @@ async def check_all_services_health(client: httpx.AsyncClient) -> bool:
         "User Service (Port 8001)": f"{USER_SERVICE_URL}/health",
         "Tuition Service (Port 8002)": f"{TUITION_SERVICE_URL}/health",
         "Payment Service (Port 8003)": f"{PAYMENT_SERVICE_URL}/health",
-        "Mailpit Web UI (Port 8025)": f"{MAILPIT_URL}/api/v1/messages"
+        "Notification Service (Port 8004)": f"{NOTIFICATION_SERVICE_URL}/health"
     }
 
     print_header("Kiểm tra kết nối các Microservices (Health Check)")
@@ -419,10 +410,10 @@ async def check_all_services_health(client: httpx.AsyncClient) -> bool:
 # =============================================================================
 async def main():
     print(f"\n{Colors.BOLD}{Colors.YELLOW}")
-    print("╔════════════════════════════════════════════════════════════════════════════╗")
-    print("║     iBanking TDTU - BỘ KIỂM THỬ TỰ ĐỘNG CONCURRENCY & KIẾN TRÚC SOA        ║")
-    print("║       Môn: CS504070 - Kiến Trúc Hướng Dịch Vụ - ĐH Tôn Đức Thắng           ║")
-    print("╚════════════════════════════════════════════════════════════════════════════╝")
+    print("================================================================================")
+    print("      iBanking TDTU - BỘ KIỂM THỬ TỰ ĐỘNG CONCURRENCY & KIẾN TRÚC SOA           ")
+    print("        Môn: CS504070 - Kiến Trúc Hướng Dịch Vụ - ĐH Tôn Đức Thắng              ")
+    print("================================================================================")
     print(f"{Colors.RESET}")
 
     limits = httpx.Limits(max_keepalive_connections=50, max_connections=100)
@@ -430,7 +421,7 @@ async def main():
         # 1. Kiểm tra sức khỏe hệ thống
         is_healthy = await check_all_services_health(client)
         if not is_healthy:
-            print(f"\n{Colors.BOLD}{Colors.RED}❌ CẢNH BÁO: Một số dịch vụ chưa khởi động.{Colors.RESET}")
+            print(f"\n{Colors.BOLD}{Colors.RED}[CẢNH BÁO] Một số dịch vụ chưa khởi động.{Colors.RESET}")
             print(f"Vui lòng đảm bảo bạn đã chạy: {Colors.BOLD}docker compose up -d --build{Colors.RESET}\n")
             sys.exit(1)
 
@@ -459,17 +450,16 @@ async def main():
         all_passed = True
         for test_name, passed in results.items():
             if passed:
-                print(f"  {Colors.BOLD}{Colors.GREEN}✓ [PASS]{Colors.RESET} {test_name}: ĐẠT ĐIỂM TỐI ĐA")
+                print(f"  {Colors.BOLD}{Colors.GREEN}[PASS]{Colors.RESET} {test_name}: ĐẠT YÊU CẦU")
             else:
-                print(f"  {Colors.BOLD}{Colors.RED}✗ [FAIL]{Colors.RESET} {test_name}: CHƯA ĐẠT")
+                print(f"  {Colors.BOLD}{Colors.RED}[FAIL]{Colors.RESET} {test_name}: CHƯA ĐẠT")
                 all_passed = False
 
         print(f"\n{Colors.CYAN}{'='*75}{Colors.RESET}")
         if all_passed:
-            print(f"{Colors.BOLD}{Colors.GREEN}🎉 XUẤT SẮC! TOÀN BỘ CÁC TIÊU CHÍ CONCURRENCY & SOA ĐỀU ĐẠT CHUẨN 10/10!{Colors.RESET}")
-            print(f"{Colors.GREEN}Hệ thống hoàn toàn sẵn sàng cho buổi bảo vệ đồ án trước Hội đồng.{Colors.RESET}")
+            print(f"{Colors.BOLD}{Colors.GREEN}KẾT QUẢ: TOÀN BỘ CÁC TIÊU CHÍ CONCURRENCY & SOA ĐỀU ĐẠT YÊU CẦU.{Colors.RESET}")
         else:
-            print(f"{Colors.BOLD}{Colors.RED}⚠️ Một số bài kiểm thử chưa vượt qua. Vui lòng kiểm tra lại log bên trên.{Colors.RESET}")
+            print(f"{Colors.BOLD}{Colors.RED}[CẢNH BÁO] Một số bài kiểm thử chưa vượt qua. Vui lòng kiểm tra lại log bên trên.{Colors.RESET}")
         print(f"{Colors.CYAN}{'='*75}{Colors.RESET}\n")
 
 if __name__ == "__main__":

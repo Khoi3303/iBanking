@@ -26,20 +26,10 @@
                 <div class="login-card">
                     <div class="brand-header">
                         <div class="logo-box">
-                            <span class="logo-icon">🏛️</span>
+                            <span style="font-weight: 700; color: #1e40af; font-size: 20px;">iB</span>
                         </div>
                         <h1>iBanking TDTU</h1>
                         <p class="subtitle">Hệ thống Ngân hàng số & Thanh toán học phí</p>
-                    </div>
-
-                    <!-- TAB CHUYỂN ĐĂNG NHẬP / ĐĂNG KÝ -->
-                    <div class="auth-tabs">
-                        <button type="button" id="tabLogin" class="auth-tab active" onclick="switchAuthTab('login')">
-                            Đăng nhập
-                        </button>
-                        <button type="button" id="tabRegister" class="auth-tab" onclick="switchAuthTab('register')">
-                            Đăng ký tài khoản
-                        </button>
                     </div>
 
                     <!-- FORM ĐĂNG NHẬP -->
@@ -61,9 +51,9 @@
                             </button>
                         </form>
 
-                        <!-- QUICK DEMO SELECTION -->
+                        <!-- TÀI KHOẢN MẪU KHỞI TẠO SẴN -->
                         <div class="demo-accounts">
-                            <p class="demo-title">⚡ Chọn nhanh tài khoản demo (Đã seed sẵn):</p>
+                            <p class="demo-title">Tài khoản thử nghiệm sẵn có (Mật khẩu: 123456):</p>
                             <div class="demo-chips">
                                 <button type="button" class="chip" onclick="quickFillUser('nguyenvana', '20.000.000đ')">
                                     <strong>Nguyễn Văn A</strong> (20tr)
@@ -72,51 +62,19 @@
                                     <strong>Trần Thị B</strong> (15tr)
                                 </button>
                                 <button type="button" class="chip" onclick="quickFillUser('lethanhc', '5.000.000đ')">
-                                    <strong>Lê Thành C</strong> (5tr - Test thiếu tiền)
+                                    <strong>Lê Thành C</strong> (5tr - Thiếu số dư)
+                                </button>
+                                <button type="button" class="chip" onclick="quickFillUser('lekhoi3303', '20.000.000đ')">
+                                    <strong>Lê Khôi</strong> (20tr)
+                                </button>
+                                <button type="button" class="chip" onclick="quickFillUser('tienmobile2006', '20.000.000đ')">
+                                    <strong>Nguyễn Thanh Tiền</strong> (20tr)
+                                </button>
+                                <button type="button" class="chip" onclick="quickFillUser('mensieu123', '20.000.000đ')">
+                                    <strong>Nguyễn Minh Đăng</strong> (20tr)
                                 </button>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- FORM ĐĂNG KÝ TÀI KHOẢN MỚI -->
-                    <div id="registerSection" class="hidden">
-                        <form id="registerForm">
-                            <div class="form-group">
-                                <label for="regFullName">Họ và tên chủ tài khoản</label>
-                                <input type="text" id="regFullName" placeholder="Ví dụ: Lê Hoàng Minh Khôi" required>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="regEmail">Email cá nhân (Nhận mã OTP & Biên lai)</label>
-                                <input type="email" id="regEmail" placeholder="khoi18042006@gmail.com" required>
-                                <small class="form-hint">Mã OTP và hóa đơn học phí sẽ gửi trực tiếp về email này</small>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group col-6">
-                                    <label for="regUsername">Tên đăng nhập</label>
-                                    <input type="text" id="regUsername" placeholder="minhkhoi" required>
-                                </div>
-                                <div class="form-group col-6">
-                                    <label for="regPhone">Số điện thoại</label>
-                                    <input type="text" id="regPhone" placeholder="0901234567" required>
-                                </div>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="regPassword">Mật khẩu</label>
-                                <input type="password" id="regPassword" placeholder="Tối thiểu 6 ký tự" required value="123456">
-                            </div>
-
-                            <p class="text-xs text-muted text-center" style="margin-bottom: 14px;">
-                                🔒 Tài khoản mới mở mặc định có <strong>0 VNĐ</strong>. Bạn có thể nạp tiền bất cứ lúc nào.
-                            </p>
-
-                            <button type="submit" id="btnRegister" class="btn btn-primary btn-block">
-                                <span class="btn-text">Đăng ký & Vào hệ thống</span>
-                                <span class="spinner hidden"></span>
-                            </button>
-                        </form>
                     </div>
                 </div>
             </div>
@@ -157,10 +115,10 @@
                 <!-- NAVIGATION TABS -->
                 <div class="tabs-bar">
                     <button id="tabTuitionBtn" class="tab-btn active" onclick="switchTab('tuition')">
-                        💳 Thanh toán học phí
+                        Thanh toán học phí
                     </button>
                     <button id="tabHistoryBtn" class="tab-btn" onclick="switchTab('history')">
-                        📜 Lịch sử giao dịch
+                        Lịch sử giao dịch
                     </button>
                 </div>
 
@@ -175,7 +133,7 @@
                                 <div class="card-header">
                                     <span class="card-step">A</span>
                                     <h2>Thông tin Người nộp tiền</h2>
-                                    <span class="badge badge-lock">🔒 Tự động từ tài khoản</span>
+                                    <span class="badge badge-lock">Tự động từ tài khoản</span>
                                 </div>
                                 <div class="card-body">
                                     <div class="form-row">
@@ -214,12 +172,27 @@
 
                                     <!-- GỢI Ý MSSV -->
                                     <div class="demo-students">
-                                        <span class="text-muted text-sm">Gợi ý MSSV:</span>
-                                        <div class="demo-student-chips">
-                                            <button type="button" class="mini-chip" onclick="quickFillStudent('524H0001')">524H0001</button>
-                                            <button type="button" class="mini-chip" onclick="quickFillStudent('524H0002')">524H0002</button>
-                                            <button type="button" class="mini-chip" onclick="quickFillStudent('524H0003')">524H0003</button>
-                                            <button type="button" class="mini-chip" onclick="quickFillStudent('524H0004')">524H0004</button>
+                                        <span class="text-muted text-sm font-semibold">Danh sách MSSV tra cứu nhanh:</span>
+                                        <div class="demo-student-chips mt-2">
+                                            <button type="button" class="mini-chip chip-unpaid" onclick="quickFillStudent('524H0001')" title="Nguyễn Văn An - 15.000.000đ">524H0001 (15tr)</button>
+                                            <button type="button" class="mini-chip chip-unpaid" onclick="quickFillStudent('524H0005')" title="Đỗ Gia Bảo - 14.000.000đ">524H0005 (14tr)</button>
+                                            <button type="button" class="mini-chip chip-unpaid" onclick="quickFillStudent('524H0006')" title="Hoàng Thị Lan - 11.500.000đ">524H0006 (11.5tr)</button>
+                                            <button type="button" class="mini-chip chip-unpaid" onclick="quickFillStudent('524H0007')" title="Vũ Đình Trọng - 16.000.000đ">524H0007 (16tr)</button>
+                                            <button type="button" class="mini-chip chip-unpaid" onclick="quickFillStudent('524H0008')" title="Bùi Ngọc Ánh - 13.200.000đ">524H0008 (13.2tr)</button>
+                                            <button type="button" class="mini-chip chip-unpaid" onclick="quickFillStudent('524H0009')" title="Phan Quốc Huy - 15.500.000đ">524H0009 (15.5tr)</button>
+                                            <button type="button" class="mini-chip chip-unpaid" onclick="quickFillStudent('524H0010')" title="Nguyễn Thùy Trang - 9.800.000đ">524H0010 (9.8tr)</button>
+                                            <button type="button" class="mini-chip chip-unpaid" onclick="quickFillStudent('524H0011')" title="Đặng Minh Khang - 8.500.000đ">524H0011 (8.5tr)</button>
+                                            <button type="button" class="mini-chip chip-unpaid" onclick="quickFillStudent('524H0012')" title="Trịnh Mỹ Duyên - 12.500.000đ">524H0012 (12.5tr)</button>
+                                            <button type="button" class="mini-chip chip-unpaid" onclick="quickFillStudent('524H0013')" title="Huỳnh Nhật Minh - 7.500.000đ">524H0013 (7.5tr)</button>
+                                            <button type="button" class="mini-chip chip-unpaid" onclick="quickFillStudent('524H0014')" title="Mai Phương Thảo - 10.200.000đ">524H0014 (10.2tr)</button>
+                                            <button type="button" class="mini-chip chip-unpaid" onclick="quickFillStudent('524H0015')" title="Lương Thế Vinh - 6.800.000đ">524H0015 (6.8tr)</button>
+                                            <button type="button" class="mini-chip chip-unpaid" onclick="quickFillStudent('524H0016')" title="Cao Thu Hà - 13.000.000đ">524H0016 (13tr)</button>
+                                            <button type="button" class="mini-chip chip-unpaid" onclick="quickFillStudent('524H0017')" title="Tạ Quang Khải - 5.500.000đ">524H0017 (5.5tr)</button>
+                                            <button type="button" class="mini-chip chip-unpaid" onclick="quickFillStudent('524H0018')" title="Đoàn Yến Nhi - 11.000.000đ">524H0018 (11tr)</button>
+                                            <button type="button" class="mini-chip chip-unpaid" onclick="quickFillStudent('524H0019')" title="Ngô Gia Khiêm - 8.900.000đ">524H0019 (8.9tr)</button>
+                                            <button type="button" class="mini-chip chip-unpaid" onclick="quickFillStudent('524H0020')" title="Chu Bảo Trâm - 14.500.000đ">524H0020 (14.5tr)</button>
+                                            <button type="button" class="mini-chip chip-paid" onclick="quickFillStudent('524H0002')" title="Trần Thị Mai - Đã thanh toán (Test đã nộp)">524H0002 (Đã đóng)</button>
+                                            <button type="button" class="mini-chip chip-excess" onclick="quickFillStudent('524H0003')" title="Lê Hoàng Nam - 50.000.000đ (Test số dư không đủ)">524H0003 (50tr)</button>
                                         </div>
                                     </div>
 
@@ -249,7 +222,7 @@
                                                 <span class="info-val text-primary font-bold text-lg" id="resAmount">0 VND</span>
                                             </div>
                                         </div>
-                                        <p class="policy-note">⚠️ Lưu ý: Hệ thống chỉ hỗ trợ thanh toán toàn bộ khoản học phí, không thanh toán từng phần.</p>
+                                        <p class="policy-note">Lưu ý: Hệ thống chỉ hỗ trợ thanh toán toàn bộ khoản học phí, không thanh toán từng phần.</p>
                                     </div>
                                 </div>
                             </div>
@@ -283,7 +256,7 @@
                                     <!-- CẢNH BÁO SỐ DƯ NẾU KHÔNG ĐỦ TIỀN -->
                                     <div id="insufficientBalanceAlert" class="alert alert-danger hidden mt-3">
                                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                                            <span>❌ <strong>Số dư không đủ:</strong> Vui lòng nạp thêm tiền.</span>
+                                            <span><strong>Số dư không đủ:</strong> Vui lòng nạp thêm tiền.</span>
                                             <button type="button" class="btn btn-sm btn-danger-pill" onclick="openDepositModal()">+ Nạp tiền ngay</button>
                                         </div>
                                     </div>
@@ -322,7 +295,7 @@
                         <div class="card-header flex-between">
                             <h2>Lịch sử Giao dịch Đóng học phí</h2>
                             <button class="btn btn-outline-primary btn-sm" onclick="loadTransactionHistory()">
-                                🔄 Làm mới
+                                Làm mới
                             </button>
                         </div>
                         <div class="card-body">
@@ -359,13 +332,13 @@
         <div id="otpModal" class="modal-overlay hidden">
             <div class="modal-card">
                 <div class="modal-header">
-                    <h3>🔐 Xác thực Giao dịch bằng OTP</h3>
+                    <h3>Xác thực Giao dịch bằng OTP</h3>
                     <button class="close-btn" onclick="cancelOtpModal()">&times;</button>
                 </div>
                 <div class="modal-body text-center">
                     <p class="text-muted">
                         Hệ thống đã gửi mã OTP xác thực giao dịch đến email:
-                        <br><strong id="otpEmailMasked" class="text-primary font-bold">ngu***@gmail.com</strong>
+                        <br><strong id="otpEmail" class="text-primary font-bold"></strong>
                     </p>
 
                     <!-- ĐỒNG HỒ ĐẾM NGƯỢC 5 PHÚT -->
@@ -380,11 +353,13 @@
                     </div>
                     <p class="text-xs text-muted mt-1">Mã OTP gồm 6 chữ số và chỉ sử dụng được 1 lần.</p>
 
-                    <!-- TIỆN ÍCH TRONG MÔI TRƯỜNG DEV/DEMO -->
-                    <div class="mailpit-helper">
-                        <a href="http://localhost:8025" target="_blank" class="mailpit-link">
-                            📬 Mở Hộp thư Mailpit (http://localhost:8025) để lấy OTP
-                        </a>
+                    <!-- HƯỚNG DẪN NHẬN MÃ OTP GMAIL -->
+                    <div class="email-otp-notice">
+                        <div class="notice-icon" style="font-size: 13px; font-weight: 700; background: #e0e7ff; color: #1e40af; border-radius: 6px; padding: 4px 8px;">EMAIL</div>
+                        <div class="notice-text">
+                            <strong>Mã OTP đã được gửi về Gmail của bạn!</strong>
+                            <span>Vui lòng kiểm tra <em>Hộp thư đến</em> (hoặc thư mục <em>Spam / Thư rác</em>) trên điện thoại hoặc máy tính để lấy mã xác thực 6 số.</span>
+                        </div>
                     </div>
 
                     <div id="otpErrorAlert" class="alert alert-danger hidden mt-3"></div>
@@ -447,7 +422,7 @@
         <div id="depositModal" class="modal-overlay hidden">
             <div class="modal-card">
                 <div class="modal-header">
-                    <h3>💰 Nạp tiền vào tài khoản iBanking</h3>
+                    <h3>Nạp tiền vào tài khoản iBanking</h3>
                     <button class="close-btn" onclick="closeDepositModal()">&times;</button>
                 </div>
                 <div class="modal-body">

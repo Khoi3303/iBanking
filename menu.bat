@@ -8,17 +8,17 @@ echo ======================================================================
 echo.
 echo   [1] Khởi động toàn bộ hệ thống (docker compose up -d)
 echo   [2] Rebuild nhanh các service đã sửa (Frontend, Gateway, User Service)
-echo   [3] RESET TRẠNG THÁI DEMO (Đặt 524H0001 về UNPAID & nguyenvana 20tr)
+echo   [3] Reset trạng thái dữ liệu demo (Đặt hóa đơn về UNPAID & số dư 20tr)
 echo   [4] Kiểm tra trạng thái các Container (docker compose ps)
-echo   [5] Xem Log gửi Email (Notification Service - Gmail SMTP)
+echo   [5] Xem Log gửi Email (Notification Service - SMTP)
 echo   [6] Xem Log điều phối giao dịch (Payment Service - Saga & OTP)
-echo   [7] Chạy kiểm thử tự động Concurrency & Saga (Rubric chấm điểm)
-echo   [8] Đẩy code mới lên GitHub (git add, commit & push)
+echo   [7] Chạy kiểm thử tự động Concurrency & Saga
+echo   [8] Đẩy code mới lên GitHub (git_push.bat)
 echo   [9] Tắt toàn bộ hệ thống (docker compose down)
 echo   [0] Thoát
 echo.
 echo ======================================================================
-set /p opt="Vui lòng nhập lựa chọn của bạn [0-9]: "
+set /p opt="Vui lòng nhập lựa chọn của bạn: "
 
 if "%opt%"=="1" goto START
 if "%opt%"=="2" goto REBUILD
@@ -42,16 +42,21 @@ goto MENU
 
 :REBUILD
 echo.
-echo Đang rebuild lại frontend, api-gateway và user-service...
-docker compose up -d --build frontend api-gateway user-service
+echo Đang rebuild và cập nhật các dịch vụ...
+if exist fix.sql del /f /q fix.sql >nul 2>&1
+if exist database\fix_utf8.sql del /f /q database\fix_utf8.sql >nul 2>&1
+if exist database\add_test_accounts.sql del /f /q database\add_test_accounts.sql >nul 2>&1
+if exist nap_tai_khoan_ngay.bat del /f /q nap_tai_khoan_ngay.bat >nul 2>&1
+docker compose exec -T mysql mysql --default-character-set=utf8mb4 -u root -prootpassword < database\reset_demo.sql >nul 2>&1
+docker compose up -d --build --remove-orphans frontend api-gateway user-service tuition-service payment-service notification-service
 echo Hoàn tất! Nhấn Ctrl + F5 trên trình duyệt để kiểm tra.
 pause
 goto MENU
 
 :RESET
 echo.
-echo Đang khôi phục hóa đơn 524H0001 về UNPAID và số dư nguyenvana = 20.000.000 VNĐ...
-type database\reset_demo.sql | docker compose exec -T mysql mysql -u root -prootpassword
+echo Đang khôi phục hóa đơn học phí về UNPAID và số dư về 20.000.000 VNĐ...
+docker compose exec -T mysql mysql --default-character-set=utf8mb4 -u root -prootpassword < database\reset_demo.sql
 echo Hoàn tất! Bạn có thể thanh toán lại ngay.
 pause
 goto MENU

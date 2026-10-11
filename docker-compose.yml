@@ -6,6 +6,7 @@ services:
     image: mysql:8.0
     container_name: ibanking-mysql
     restart: always
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
     ports:
@@ -38,18 +39,6 @@ services:
     networks:
       - ibanking-net
 
-  # ==========================================
-  # 3. MAILPIT (Mock SMTP & Web Mail Viewer)
-  # ==========================================
-  mailpit:
-    image: axllent/mailpit:latest
-    container_name: ibanking-mailpit
-    restart: always
-    ports:
-      - "1025:1025"  # Cổng SMTP
-      - "8025:8025"  # Giao diện Web xem thư
-    networks:
-      - ibanking-net
 
   # ==========================================
   # 4. USER & ACCOUNT SERVICE (Port 8001)
@@ -155,8 +144,6 @@ services:
       SMTP_FROM_NAME: ${SMTP_FROM_NAME:-iBanking TDTU Support}
       USE_TLS: ${USE_TLS:-true}
       INTERNAL_API_KEY: ibanking-internal-secret-token-2026
-    depends_on:
-      - mailpit
     networks:
       - ibanking-net
 

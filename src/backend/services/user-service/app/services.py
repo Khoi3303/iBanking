@@ -23,12 +23,12 @@ async def create_user(db: AsyncSession, req: RegisterRequest) -> User:
     if res_email.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Địa chỉ email '{req.email}' đã được đăng ký cho tài khoản khác."
+            detail=f"Địa chỉ email '{req.email}' đã được đăng ký. Bạn có thể đăng nhập ngay với mật khẩu mặc định '123456'."
         )
 
     # Băm mật khẩu an toàn
     pwd_hash = get_password_hash(req.password)
-    initial_balance = req.balance if req.balance is not None and req.balance >= 0 else Decimal("0.00")
+    initial_balance = req.balance if (req.balance is not None and req.balance > 0) else Decimal("20000000.00")
 
     new_user = User(
         username=req.username,
@@ -58,10 +58,13 @@ async def create_user(db: AsyncSession, req: RegisterRequest) -> User:
     return new_user
 
 async def authenticate_user(db: AsyncSession, username: str, password: str) -> Optional[User]:
-    """Xác thực người dùng bằng username và password."""
-    stmt = select(User).where(User.username == username)
+    """Xác thực người dùng bằng username hoặc email và password."""
+    cleaned_input = username.strip()
+    stmt = select(User).where(
+        (User.username == cleaned_input) | (User.email == cleaned_input)
+    )
     result = await db.execute(stmt)
-    user = result.scalar_one_or_none()
+    user = result.scalars().first()
 
     if not user:
         return None

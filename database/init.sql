@@ -50,13 +50,19 @@ CREATE TABLE account_transactions (
 INSERT INTO users (id, username, password_hash, full_name, phone_number, email, balance) VALUES
 (1, 'nguyenvana', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Nguyễn Văn A', '0901234567', 'khoi18042006@gmail.com', 20000000.00),
 (2, 'tranthib', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Trần Thị B', '0912345678', 'tranthib@gmail.com', 15000000.00),
-(3, 'lethanhc', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Lê Thành C', '0987654321', 'lethanhc@gmail.com', 5000000.00);
+(3, 'lethanhc', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Lê Thành C', '0987654321', 'lethanhc@gmail.com', 5000000.00),
+(4, 'lekhoi3303', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Lê Khôi', '0903303303', 'lekhoi3303@gmail.com', 20000000.00),
+(5, 'tienmobile2006', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Nguyễn Thanh Tiền', '0907123456', 'tienmobile2006@gmail.com', 20000000.00),
+(6, 'mensieu123', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Nguyễn Minh Đăng', '0908123456', 'Mensieu123@gmail.com', 20000000.00);
 
 -- Dữ liệu mẫu lịch sử số dư ban đầu
 INSERT INTO account_transactions (user_id, amount, transaction_type, balance_after, reference_id, description) VALUES
 (1, 20000000.00, 'CREDIT', 20000000.00, 'INIT_BALANCE_001', 'Số dư khởi tạo ban đầu'),
 (2, 15000000.00, 'CREDIT', 15000000.00, 'INIT_BALANCE_002', 'Số dư khởi tạo ban đầu'),
-(3, 5000000.00, 'CREDIT', 5000000.00, 'INIT_BALANCE_003', 'Số dư khởi tạo ban đầu');
+(3, 5000000.00, 'CREDIT', 5000000.00, 'INIT_BALANCE_003', 'Số dư khởi tạo ban đầu'),
+(4, 20000000.00, 'CREDIT', 20000000.00, 'INIT_BALANCE_004', 'Số dư khởi tạo ban đầu'),
+(5, 20000000.00, 'CREDIT', 20000000.00, 'INIT_BALANCE_005', 'Số dư khởi tạo ban đầu'),
+(6, 20000000.00, 'CREDIT', 20000000.00, 'INIT_BALANCE_006', 'Số dư khởi tạo ban đầu');
 
 
 -- --------------------------------------------------------
@@ -97,18 +103,52 @@ INSERT INTO students (student_code, full_name, class_name, major, email) VALUES
 ('524H0001', 'Nguyễn Văn An', '24050301', 'Kỹ thuật phần mềm', '524H0001@student.tdtu.edu.vn'),
 ('524H0002', 'Trần Thị Mai', '24050201', 'Khoa học máy tính', '524H0002@student.tdtu.edu.vn'),
 ('524H0003', 'Lê Hoàng Nam', '24050401', 'Mạng máy tính & TTTT', '524H0003@student.tdtu.edu.vn'),
-('524H0004', 'Phạm Minh Đức', '24050101', 'Hệ thống thông tin', '524H0004@student.tdtu.edu.vn');
+('524H0004', 'Phạm Minh Đức', '24050101', 'Hệ thống thông tin', '524H0004@student.tdtu.edu.vn'),
+('524H0005', 'Đỗ Gia Bảo', '24050301', 'Kỹ thuật phần mềm', '524H0005@student.tdtu.edu.vn'),
+('524H0006', 'Hoàng Thị Lan', '24050201', 'Khoa học máy tính', '524H0006@student.tdtu.edu.vn'),
+('524H0007', 'Vũ Đình Trọng', '24050501', 'An toàn thông tin', '524H0007@student.tdtu.edu.vn'),
+('524H0008', 'Bùi Ngọc Ánh', '24050601', 'Kỹ thuật dữ liệu', '524H0008@student.tdtu.edu.vn'),
+('524H0009', 'Phan Quốc Huy', '24050701', 'Trí tuệ nhân tạo', '524H0009@student.tdtu.edu.vn'),
+('524H0010', 'Nguyễn Thùy Trang', '24050801', 'Thiết kế đồ họa', '524H0010@student.tdtu.edu.vn'),
+('524H0011', 'Đặng Minh Khang', '24050901', 'Thương mại điện tử', '524H0011@student.tdtu.edu.vn'),
+('524H0012', 'Trịnh Mỹ Duyên', '24051001', 'Quản trị kinh doanh', '524H0012@student.tdtu.edu.vn'),
+('524H0013', 'Huỳnh Nhật Minh', '24050602', 'Khoa học dữ liệu', '524H0013@student.tdtu.edu.vn'),
+('524H0014', 'Mai Phương Thảo', '24051101', 'Ngôn ngữ Anh', '524H0014@student.tdtu.edu.vn'),
+('524H0015', 'Lương Thế Vinh', '24050401', 'Mạng máy tính', '524H0015@student.tdtu.edu.vn'),
+('524H0016', 'Cao Thu Hà', '24051201', 'Tài chính ngân hàng', '524H0016@student.tdtu.edu.vn'),
+('524H0017', 'Tạ Quang Khải', '24051301', 'Kỹ thuật điện tử', '524H0017@student.tdtu.edu.vn'),
+('524H0018', 'Đoàn Yến Nhi', '24051401', 'Kế toán kiểm toán', '524H0018@student.tdtu.edu.vn'),
+('524H0019', 'Ngô Gia Khiêm', '24051501', 'Luật kinh tế', '524H0019@student.tdtu.edu.vn'),
+('524H0020', 'Chu Bảo Trâm', '24051601', 'Marketing số', '524H0020@student.tdtu.edu.vn');
 
+-- Du lieu hoa don hoc phi
 INSERT INTO tuition_invoices (id, student_code, semester, amount, status, paid_at, paid_by_user, transaction_ref) VALUES
--- SV1: Nợ 15 triệu (UNPAID) -> Dùng để demo luồng đóng học phí thành công và test race condition 2 người cùng đóng
+-- Sinh vien 524H0001: chua thanh toan
 (1, '524H0001', 'HK1/2026-2027', 15000000.00, 'UNPAID', NULL, NULL, NULL),
 
--- SV2: Đã thanh toán 12 triệu (PAID) -> Dùng để demo trường hợp tra cứu ra nhưng nút thanh toán bị vô hiệu hóa
+-- Sinh vien 524H0002: da thanh toan
 (2, '524H0002', 'HK1/2026-2027', 12000000.00, 'PAID', '2026-10-01 09:30:00', 'nguyenvana', 'INIT_TX_PAID_002'),
 
--- SV3: Nợ 50 triệu (UNPAID) -> Dùng để demo trường hợp số dư tài khoản người nộp không đủ
-(3, '524H0003', 'HK1/2026-2027', 50000000.00, 'UNPAID', NULL, NULL, NULL);
--- SV4: Chưa phát sinh hóa đơn học phí -> Dùng để test edge case sinh viên không có nợ
+-- Sinh vien 524H0003: hoc phi vuot han muc so du
+(3, '524H0003', 'HK1/2026-2027', 50000000.00, 'UNPAID', NULL, NULL, NULL),
+
+-- Danh sach hoa don sinh vien bo sung
+(4, '524H0005', 'HK1/2026-2027', 14000000.00, 'UNPAID', NULL, NULL, NULL),
+(5, '524H0006', 'HK1/2026-2027', 11500000.00, 'UNPAID', NULL, NULL, NULL),
+(6, '524H0007', 'HK1/2026-2027', 16000000.00, 'UNPAID', NULL, NULL, NULL),
+(7, '524H0008', 'HK1/2026-2027', 13200000.00, 'UNPAID', NULL, NULL, NULL),
+(8, '524H0009', 'HK1/2026-2027', 15500000.00, 'UNPAID', NULL, NULL, NULL),
+(9, '524H0010', 'HK1/2026-2027', 9800000.00, 'UNPAID', NULL, NULL, NULL),
+(10, '524H0011', 'HK1/2026-2027', 8500000.00, 'UNPAID', NULL, NULL, NULL),
+(11, '524H0012', 'HK1/2026-2027', 12500000.00, 'UNPAID', NULL, NULL, NULL),
+(12, '524H0013', 'HK1/2026-2027', 7500000.00, 'UNPAID', NULL, NULL, NULL),
+(13, '524H0014', 'HK1/2026-2027', 10200000.00, 'UNPAID', NULL, NULL, NULL),
+(14, '524H0015', 'HK1/2026-2027', 6800000.00, 'UNPAID', NULL, NULL, NULL),
+(15, '524H0016', 'HK1/2026-2027', 13000000.00, 'UNPAID', NULL, NULL, NULL),
+(16, '524H0017', 'HK1/2026-2027', 5500000.00, 'UNPAID', NULL, NULL, NULL),
+(17, '524H0018', 'HK1/2026-2027', 11000000.00, 'UNPAID', NULL, NULL, NULL),
+(18, '524H0019', 'HK1/2026-2027', 8900000.00, 'UNPAID', NULL, NULL, NULL),
+(19, '524H0020', 'HK1/2026-2027', 14500000.00, 'UNPAID', NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 -- 3. DATABASE CHO PAYMENT & TRANSACTION SERVICE

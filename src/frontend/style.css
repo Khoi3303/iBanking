@@ -140,33 +140,7 @@ body {
     margin-top: 4px;
 }
 
-/* AUTH TABS */
-.auth-tabs {
-    display: flex;
-    background: #f1f5f9;
-    padding: 4px;
-    border-radius: var(--radius-md);
-    margin-bottom: 22px;
-}
 
-.auth-tab {
-    flex: 1;
-    padding: 9px 14px;
-    border: none;
-    background: transparent;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.auth-tab.active {
-    background: #ffffff;
-    color: var(--primary);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
 
 .form-row {
     display: flex;
@@ -535,13 +509,34 @@ input:focus {
     background: #f1f5f9;
     border: 1px solid #cbd5e1;
     font-size: 0.75rem;
-    padding: 3px 8px;
-    border-radius: 4px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 6px;
     cursor: pointer;
+    transition: all 0.15s ease;
 }
 .mini-chip:hover {
-    background: var(--primary-light);
-    border-color: var(--primary);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+}
+.mini-chip.chip-unpaid {
+    background: #f0fdf4;
+    border-color: #86efac;
+    color: #166534;
+}
+.mini-chip.chip-unpaid:hover {
+    background: #dcfce7;
+    border-color: #4ade80;
+}
+.mini-chip.chip-paid {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #64748b;
+}
+.mini-chip.chip-excess {
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #b45309;
 }
 
 /* TUITION RESULT AREA */
@@ -717,20 +712,32 @@ input:focus {
     background: #f0f9ff;
 }
 
-.mailpit-helper {
+.email-otp-notice {
     margin-top: 16px;
-    padding: 10px;
-    background: #eef2ff;
-    border: 1px dashed #6366f1;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+    border: 1px solid #86efac;
     border-radius: var(--radius-sm);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
 }
-.mailpit-link {
-    color: #4f46e5;
-    font-weight: 600;
+.email-otp-notice .notice-icon {
+    font-size: 1.3rem;
+    line-height: 1.2;
+}
+.email-otp-notice .notice-text {
     font-size: 0.8rem;
-    text-decoration: none;
+    color: #166534;
+    line-height: 1.4;
 }
-.mailpit-link:hover { text-decoration: underline; }
+.email-otp-notice .notice-text strong {
+    display: block;
+    color: #14532d;
+    font-size: 0.85rem;
+    margin-bottom: 2px;
+}
 
 /* RECEIPT MODAL */
 .receipt-card { text-align: center; padding: 20px 0; }

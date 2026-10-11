@@ -14,7 +14,8 @@ class RegisterRequest(BaseModel):
     password: str = Field(..., min_length=6, example="123456", description="Mật khẩu tài khoản")
     full_name: str = Field(..., min_length=2, max_length=100, example="Nguyễn Văn B", description="Họ và tên người dùng")
     phone_number: str = Field(..., min_length=9, max_length=20, example="0912345678", description="Số điện thoại")
-    balance: Optional[Decimal] = Field(Decimal("0.00"), description="Số dư khởi tạo ban đầu (Mặc định: 0đ)")
+    email: EmailStr = Field(..., example="nguyenvanb@gmail.com", description="Địa chỉ email cá nhân")
+    balance: Optional[Decimal] = Field(Decimal("20000000.00"), description="Số dư khởi tạo ban đầu (Mặc định: 20 triệu VNĐ)")
 
 # Request body cho nạp tiền vào tài khoản
 class DepositRequest(BaseModel):

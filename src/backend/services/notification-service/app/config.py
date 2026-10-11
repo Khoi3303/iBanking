@@ -8,14 +8,14 @@ class Settings(BaseSettings):
     # Khóa xác thực API nội bộ
     INTERNAL_API_KEY: str = "ibanking-internal-secret-token-2026"
 
-    # SMTP Configuration (Mặc định dùng Mailpit khi chạy Docker Compose)
-    SMTP_HOST: str = "mailpit"
-    SMTP_PORT: int = 1025
+    # SMTP Configuration (Mặc định dùng Gmail SMTP thực tế)
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
-    SMTP_FROM_EMAIL: str = "support@ibanking.tdtu.edu.vn"
+    SMTP_FROM_EMAIL: str = "khoi18042006@gmail.com"
     SMTP_FROM_NAME: str = "iBanking TDTU Support"
-    USE_TLS: bool = False
+    USE_TLS: bool = True
 
     class Config:
         env_file = ".env"

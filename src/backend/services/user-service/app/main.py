@@ -52,13 +52,66 @@ async def startup_event():
                 ("nguyenvana", "Nguyễn Văn A", "0901234567", "khoi18042006@gmail.com", Decimal("20000000.00")),
                 ("tranthib", "Trần Thị B", "0912345678", "tranthib@gmail.com", Decimal("15000000.00")),
                 ("lethanhc", "Lê Thành C", "0987654321", "lethanhc@gmail.com", Decimal("5000000.00")),
+                ("lekhoi3303", "Lê Khôi", "0903303303", "lekhoi3303@gmail.com", Decimal("20000000.00")),
+                ("tienmobile2006", "Nguyễn Thanh Tiền", "0907123456", "tienmobile2006@gmail.com", Decimal("20000000.00")),
+                ("mensieu123", "Nguyễn Minh Đăng", "0908123456", "Mensieu123@gmail.com", Decimal("20000000.00")),
             ]
             for username, full_name, phone, email, balance in demo_users:
-                stmt = select(User).where(User.username == username)
+                try:
+                    stmt = select(User).where((User.username == username) | (User.email == email))
+                    res = await session.execute(stmt)
+                    user = res.scalars().first()
+                    if not user:
+                        new_user = User(
+                            username=username,
+                            password_hash="$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe",
+                            full_name=full_name,
+                            phone_number=phone,
+                            email=email,
+                            balance=balance
+                        )
+                        session.add(new_user)
+                    else:
+                        user.username = username
+                        user.email = email
+                        user.full_name = full_name
+                        user.password_hash = "$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe"
+                        if user.balance < Decimal("15000000.00"):
+                            user.balance = balance
+                    await session.commit()
+                except Exception as item_err:
+                    await session.rollback()
+                    print(f"Notice seed {username}: {item_err}")
+    except Exception as e:
+        print(f"Startup seed notice: {e}")
+
+
+@app.get("/auth/seed-demo", tags=["System"])
+@app.post("/auth/seed-demo", tags=["System"])
+async def trigger_seed_demo():
+    """Kích hoạt nạp lại toàn bộ tài khoản demo (lekhoi3303, tienmobile2006, nguyenvana) ngay lập tức."""
+    from app.database import AsyncSessionLocal
+    from app.models import User
+    from sqlalchemy import select
+    from decimal import Decimal
+
+    results = []
+    demo_users = [
+        ("nguyenvana", "Nguyễn Văn A", "0901234567", "khoi18042006@gmail.com", Decimal("20000000.00")),
+        ("tranthib", "Trần Thị B", "0912345678", "tranthib@gmail.com", Decimal("15000000.00")),
+        ("lethanhc", "Lê Thành C", "0987654321", "lethanhc@gmail.com", Decimal("5000000.00")),
+        ("lekhoi3303", "Lê Khôi", "0903303303", "lekhoi3303@gmail.com", Decimal("20000000.00")),
+        ("tienmobile2006", "Nguyễn Thanh Tiền", "0907123456", "tienmobile2006@gmail.com", Decimal("20000000.00")),
+        ("mensieu123", "Nguyễn Minh Đăng", "0908123456", "Mensieu123@gmail.com", Decimal("20000000.00")),
+    ]
+    async with AsyncSessionLocal() as session:
+        for username, full_name, phone, email, balance in demo_users:
+            try:
+                stmt = select(User).where((User.username == username) | (User.email == email))
                 res = await session.execute(stmt)
-                user = res.scalar_one_or_none()
+                user = res.scalars().first()
                 if not user:
-                    new_user = User(
+                    user = User(
                         username=username,
                         password_hash="$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe",
                         full_name=full_name,
@@ -66,12 +119,22 @@ async def startup_event():
                         email=email,
                         balance=balance
                     )
-                    session.add(new_user)
+                    session.add(user)
+                    status_text = "created"
                 else:
+                    user.username = username
                     user.email = email
-            await session.commit()
-    except Exception as e:
-        print(f"Startup seed notice: {e}")
+                    user.full_name = full_name
+                    user.password_hash = "$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe"
+                    user.balance = balance
+                    status_text = "updated"
+                await session.commit()
+                results.append({"username": username, "email": email, "status": status_text, "balance": float(balance)})
+            except Exception as e:
+                await session.rollback()
+                results.append({"username": username, "error": str(e)})
+
+    return {"success": True, "message": "Đã đồng bộ tài khoản demo thành công", "users": results}
 
 security = HTTPBearer()
 

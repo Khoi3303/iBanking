@@ -23,7 +23,7 @@ git push
 if %ERRORLEVEL% EQU 0 (
     echo.
     echo ========================================================
-    echo ✓ ĐÃ ĐẨY LÊN GITHUB THÀNH CÔNG!
+    echo   ĐÃ ĐẨY LÊN GITHUB THÀNH CÔNG!
     echo   Bạn của bạn chỉ cần mở terminal và gõ: git pull
     echo ========================================================
 ) else (

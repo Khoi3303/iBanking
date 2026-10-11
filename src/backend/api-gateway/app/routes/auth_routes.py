@@ -34,3 +34,12 @@ async def register(req: RegisterRequest, request: Request):
     target_url = f"{settings.USER_SERVICE_URL}/auth/register"
     return await forward_request(target_url, request)
 
+
+@router.get("/seed-demo", summary="Đồng bộ nạp tài khoản demo")
+@router.post("/seed-demo", summary="Đồng bộ nạp tài khoản demo")
+async def seed_demo(request: Request):
+    """Chuyển tiếp lệnh đồng bộ tài khoản demo sang User Service."""
+    target_url = f"{settings.USER_SERVICE_URL}/auth/seed-demo"
+    return await forward_request(target_url, request)
+
+

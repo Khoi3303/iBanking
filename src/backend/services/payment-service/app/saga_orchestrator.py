@@ -17,17 +17,6 @@ from app.redis_client import (
 )
 from app.clients import UserServiceClient, TuitionServiceClient, NotificationServiceClient
 
-def mask_email(email: str) -> str:
-    """Ẩn bớt ký tự email để bảo mật thông tin (vd: nguyenvana@gmail.com -> ngu***@gmail.com)."""
-    if "@" not in email:
-        return email
-    name, domain = email.split("@", 1)
-    if len(name) <= 3:
-        masked_name = name[0] + "***"
-    else:
-        masked_name = name[:3] + "***"
-    return f"{masked_name}@{domain}"
-
 
 async def initiate_payment_saga(
     db: AsyncSession,
@@ -131,8 +120,8 @@ async def initiate_payment_saga(
         "semester": new_tx.semester,
         "amount": new_tx.amount,
         "expires_in_seconds": 300,
-        "user_email": mask_email(user_email),
-        "message": f"Mã OTP đã được gửi đến email {mask_email(user_email)}. Mã có hiệu lực trong 5 phút."
+        "user_email": user_email,
+        "message": f"Mã OTP đã được gửi đến email {user_email}. Mã có hiệu lực trong 5 phút."
     }
 
 

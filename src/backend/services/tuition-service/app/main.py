@@ -41,6 +41,19 @@ async def verify_internal_secret(
         )
 
 
+@app.on_event("startup")
+async def startup_event():
+    """Tự động kiểm tra và seed danh sách sinh viên & học phí TDTU khi khởi động."""
+    try:
+        from app.database import engine, Base
+        from app.seed import seed_data
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        await seed_data()
+    except Exception as e:
+        print(f"Tuition startup seed notice: {e}")
+
+
 @app.get("/health", tags=["System"])
 async def health_check():
     """Kiểm tra trạng thái hoạt động của TDTU Tuition Service."""

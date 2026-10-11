@@ -1,97 +1,115 @@
 # BẢNG TỔNG HỢP CÂU LỆNH THƯỜNG DÙNG - iBanking TDTU (SOA)
 
-Tài liệu này tổng hợp đầy đủ các câu lệnh thông dụng nhất trong quá trình phát triển, kiểm thử, sửa lỗi và demo đồ án **iBanking Microservices**.
+Tài liệu này tổng hợp các câu lệnh thông dụng trong quá trình phát triển, kiểm thử và demo đồ án **iBanking Microservices**.
 
 ---
 
-## ⚡ 1. CÁC FILE SCRIPT CHẠY NHANH BẰNG 1-CLICK (Khuyên dùng)
+## 1. CÁC FILE SCRIPT CHẠY NHANH
 
-Trong thư mục gốc của dự án đã tạo sẵn 3 file script tiện lợi, bạn chỉ cần **nhấp đúp chuột** để chạy:
+Trong thư mục gốc của dự án có sẵn các file script hỗ trợ thao tác nhanh:
 
 | File Script | Mục đích sử dụng | Khi nào dùng? |
 | :--- | :--- | :--- |
-| **`start.bat`** | Khởi động toàn bộ hệ thống từ đầu (Build + MySQL + Redis + Mailpit + 5 Services). | Khi mới mở máy tính, hoặc muốn reset toàn bộ hệ thống về mới tinh. |
-| **`rebuild.bat`** | Rebuild và cập nhật nhanh các service đã sửa code (**giữ nguyên dữ liệu DB**). | Sau khi bạn vừa sửa code Frontend, Gateway, hoặc User Service. |
-| **`reset_demo.bat`** | **Đặt lại trạng thái demo:** Sinh viên `524H0001` về `UNPAID` và tài khoản `nguyenvana` về `20.000.000đ`. | **Dùng ngay sau khi vừa thanh toán xong**, muốn test thanh toán lại nhiều lần. |
+| **`start.bat`** | Khởi động toàn bộ hệ thống (Build + MySQL + Redis + Microservices). | Khi mới mở máy tính, hoặc muốn khởi động toàn bộ hệ thống từ đầu. |
+| **`rebuild.bat`** | Rebuild và cập nhật nhanh các service đã sửa code. | Sau khi vừa sửa code Frontend, Gateway hoặc các service. |
+| **`reset_demo.bat`** | Đặt lại trạng thái dữ liệu demo ban đầu và số dư tài khoản về 20.000.000đ. | Dùng sau khi vừa thanh toán xong để kiểm thử lại từ đầu. |
 
 ---
 
-## 🔄 2. CÂU LỆNH RESET DỮ LIỆU & TRẠNG THÁI THANH TOÁN
+## 2. CÂU LỆNH RESET DỮ LIỆU VÀ TRẠNG THÁI
 
-### Cách 1: Reset nhanh hóa đơn 524H0001 và số dư tài khoản 1 (Khuyên dùng)
+### Cách 1: Reset dữ liệu qua script SQL (Khuyên dùng)
 Chạy lệnh này trong Terminal PowerShell hoặc Command Prompt:
 ```powershell
-type database\reset_demo.sql | docker compose exec -T mysql mysql -u root -prootpassword
+docker compose exec -T mysql mysql --default-character-set=utf8mb4 -u root -prootpassword < database\reset_demo.sql
 ```
-*(Lệnh này đặt lại hóa đơn `524H0001` thành `UNPAID`, xóa lịch sử giao dịch của MSSV này trong `payment_db`, và trả số dư `nguyenvana` về 20.000.000 VNĐ).*
+*(Lệnh này đặt lại trạng thái các hóa đơn học phí về `UNPAID`, xóa lịch sử giao dịch cũ và đặt lại số dư 20.000.000 VNĐ cho các tài khoản kiểm thử).*
+
+> **Lưu ý:** Hệ thống đã được bổ sung sẵn danh sách hơn 15 mã sinh viên (MSSV) còn nợ học phí (< 20 triệu) để kiểm thử thanh toán liên tục mà không bắt buộc phải reset:
+> - `524H0001` (15.000.000đ - Nguyễn Văn An)
+> - `524H0005` (14.000.000đ - Đỗ Gia Bảo)
+> - `524H0006` (11.500.000đ - Hoàng Thị Lan)
+> - `524H0007` (16.000.000đ - Vũ Đình Trọng)
+> - `524H0008` (13.200.000đ - Bùi Ngọc Ánh)
+> - `524H0009` (15.500.000đ - Phan Quốc Huy)
+> - `524H0010` (9.800.000đ - Nguyễn Thùy Trang)
+> - `524H0011` (8.500.000đ - Đặng Minh Khang)
+> - `524H0012` (12.500.000đ - Trịnh Mỹ Duyên)
+> - `524H0013` (7.500.000đ - Huỳnh Nhật Minh)
+> - `524H0014` (10.200.000đ - Mai Phương Thảo)
+> - `524H0015` (6.800.000đ - Lương Thế Vinh)
+> - `524H0016` (13.000.000đ - Cao Thu Hà)
+> - `524H0017` (5.500.000đ - Tạ Quang Khải)
+> - `524H0018` (11.000.000đ - Đoàn Yến Nhi)
+> - `524H0019` (8.900.000đ - Ngô Gia Khiêm)
+> - `524H0020` (14.500.000đ - Chu Bảo Trâm)
+> - *Các trường hợp đặc biệt:* `524H0002` (Đã đóng), `524H0003` (50 triệu - Kiểm tra thiếu số dư), `524H0004` (Không có nợ học phí).
 
 ---
 
-### Cách 2: Reset toàn bộ Database về trạng thái gốc ban đầu của đồ án
-Nếu muốn xóa sạch các tài khoản tự đăng ký mới và đưa toàn bộ database về lúc mới nộp bài:
+### Cách 2: Khởi tạo lại Database từ đầu
 ```powershell
 docker compose down -v
 docker compose up -d
 ```
-*(Tham số `-v` sẽ xóa sạch các volume dữ liệu cũ và nạp lại toàn bộ file `database/init.sql`).*
+*(Tham số `-v` xóa các volume dữ liệu cũ và nạp lại toàn bộ file `database/init.sql`).*
 
 ---
 
-## 🛠️ 3. CÂU LỆNH KHI CHỈNH SỬA CODE (REBUILD TỪNG SERVICE)
+## 3. CÂU LỆNH KHI CHỈNH SỬA CODE (REBUILD TỪNG SERVICE)
 
-Khi bạn chỉnh sửa code của một service cụ thể, bạn **không cần restart toàn bộ hệ thống**. Chỉ cần rebuild đúng service đó (thời gian build chỉ mất 2-3 giây):
+Khi chỉnh sửa code của một service cụ thể, chỉ cần rebuild đúng service đó:
 
-### ① Khi sửa giao diện Frontend (HTML / CSS / JS):
+### Khi sửa giao diện Frontend (HTML / CSS / JS):
 ```powershell
 docker compose up -d --build frontend
 ```
-*(Sau đó mở trình duyệt bấm **Ctrl + F5** để xem thay đổi ngay lập tức).*
+*(Sau đó mở trình duyệt bấm Ctrl + F5 để xem thay đổi).*
 
-### ② Khi sửa User & Account Service:
+### Khi sửa User & Account Service:
 ```powershell
 docker compose up -d --build user-service
 ```
 
-### ③ Khi sửa API Gateway:
+### Khi sửa API Gateway:
 ```powershell
 docker compose up -d --build api-gateway
 ```
 
-### ④ Khi sửa Payment & Saga Service:
+### Khi sửa Payment Service:
 ```powershell
 docker compose up -d --build payment-service
 ```
 
-### ⑤ Khi sửa Tuition Service (Dữ liệu học phí TDTU):
+### Khi sửa Tuition Service:
 ```powershell
 docker compose up -d --build tuition-service
 ```
 
-### ⑥ Khi sửa Notification Service (Cấu hình gửi Email Gmail / Mailpit):
+### Khi sửa Notification Service:
 ```powershell
 docker compose up -d --build notification-service
 ```
 
-### ⑦ Rebuild cùng lúc nhiều service đã sửa:
+### Rebuild các service chính và nạp lại dữ liệu:
 ```powershell
-docker compose up -d --build user-service api-gateway frontend
+docker compose up -d --build user-service tuition-service payment-service notification-service api-gateway frontend
+type database\reset_demo.sql | docker compose exec -T mysql mysql -u root -prootpassword
 ```
 
 ---
 
-## 📋 4. CÂU LỆNH XEM LOGS & DEBUG THEO THỜI GIAN THỰC
+## 4. CÂU LỆNH XEM LOGS THEO THỜI GIAN THỰC
 
-Xem log là cách nhanh nhất để kiểm tra xem hệ thống có gửi mail chưa, có bị lỗi gì không:
-
-* **Xem log gửi Email (xem Gmail gửi OTP & Biên lai):**
+* **Xem log gửi Email (Notification Service):**
   ```powershell
   docker compose logs -f notification-service
   ```
-* **Xem log điều phối giao dịch Saga & OTP:**
+* **Xem log điều phối giao dịch (Payment Service):**
   ```powershell
   docker compose logs -f payment-service
   ```
-* **Xem log trừ tiền & khóa dữ liệu Pessimistic Lock (User Service):**
+* **Xem log tài khoản và số dư (User Service):**
   ```powershell
   docker compose logs -f user-service
   ```
@@ -103,17 +121,17 @@ Xem log là cách nhanh nhất để kiểm tra xem hệ thống có gửi mail 
 
 ---
 
-## 🚦 5. CÂU LỆNH QUẢN LÝ DOCKER CONTAINER
+## 5. CÂU LỆNH QUẢN LÝ DOCKER CONTAINER
 
 * **Kiểm tra trạng thái các container đang chạy:**
   ```powershell
   docker compose ps
   ```
-* **Khởi động các container (chạy nền):**
+* **Khởi động các container:**
   ```powershell
   docker compose up -d
   ```
-* **Tạm dừng hệ thống (vẫn giữ dữ liệu trong DB):**
+* **Tạm dừng hệ thống:**
   ```powershell
   docker compose stop
   ```
@@ -128,9 +146,7 @@ Xem log là cách nhanh nhất để kiểm tra xem hệ thống có gửi mail 
 
 ---
 
-## 🧪 6. CÂU LỆNH CHẠY KIỂM THỬ TỰ ĐỘNG (CONCURRENCY & SAGA)
-
-Đây là kịch bản kiểm thử tự động để lấy trọn vẹn điểm phần Concurrency (1.5đ) và Saga Transaction (1.5đ) theo Rubric của thầy:
+## 6. CÂU LỆNH CHẠY KIỂM THỬ TỰ ĐỘNG (CONCURRENCY & SAGA)
 
 1. Kích hoạt chạy test:
    ```powershell
@@ -138,16 +154,14 @@ Xem log là cách nhanh nhất để kiểm tra xem hệ thống có gửi mail 
    ```
    *(Hoặc nhấp đúp vào `scripts\run_tests.bat`).*
 
-2. Kết quả kiểm thử sẽ in ra trực tiếp:
-   - ✓ `Scenario 1: Double-Spending Test` (Khóa `SELECT ... FOR UPDATE` chống âm tiền).
-   - ✓ `Scenario 2: Race Condition Test` (Hai người cùng thanh toán 1 hóa đơn).
-   - ✓ `Scenario 3: E2E Payment Flow & Saga Compensation`.
+2. Các kịch bản kiểm thử:
+   - Scenario 1: Double-Spending Test (Khóa `SELECT ... FOR UPDATE` chống âm tiền).
+   - Scenario 2: Race Condition Test (Hai người cùng thanh toán 1 hóa đơn).
+   - Scenario 3: E2E Payment Flow & Saga Compensation.
 
 ---
 
-## 🐙 7. CÂU LỆNH GIT LÀM VIỆC NHÓM & ĐẨY LÊN GITHUB
-
-Khi bạn hoặc bạn bè trong nhóm muốn đồng bộ code:
+## 7. CÂU LỆNH GIT LÀM VIỆC NHÓM
 
 * **Xem các file đã thay đổi:**
   ```powershell
@@ -156,25 +170,38 @@ Khi bạn hoặc bạn bè trong nhóm muốn đồng bộ code:
 * **Lưu và đẩy code lên GitHub:**
   ```powershell
   git add .
-  git commit -m "Cap nhat chuc nang nap tien va mac dinh so du 0d"
+  git commit -m "Cap nhat he thong iBanking"
   git push origin main
   ```
-* **Bạn trong nhóm kéo code mới về máy:**
+* **Kéo code mới về máy:**
   ```powershell
   git pull origin main
   ```
-  *(Sau khi pull về, chỉ cần chạy file `start.bat` là hệ thống của bạn bè tự động chạy hoàn chỉnh).*
 
 ---
 
-## 🌐 8. DANH SÁCH ĐỊA CHỈ TRUY CẬP HỆ THỐNG
+## 8. DANH SÁCH TÀI KHOẢN TEST (SỐ DƯ 20.000.000 VNĐ)
+
+Mật khẩu chung cho tất cả tài khoản: `123456`
+
+| Tên đăng nhập | Mật khẩu | Họ và tên | Email nhận mã OTP | Số dư khả dụng |
+| :--- | :--- | :--- | :--- | :--- |
+| **`nguyenvana`** | `123456` | Nguyễn Văn A | `khoi18042006@gmail.com` | `20.000.000 VNĐ` |
+| **`lekhoi3303`** | `123456` | Lê Khôi | `lekhoi3303@gmail.com` | `20.000.000 VNĐ` |
+| **`tienmobile2006`** | `123456` | Nguyễn Thanh Tiền | `tienmobile2006@gmail.com` | `20.000.000 VNĐ` |
+| **`mensieu123`** | `123456` | Nguyễn Minh Đăng | `Mensieu123@gmail.com` | `20.000.000 VNĐ` |
+| **`tranthib`** | `123456` | Trần Thị B | `tranthib@gmail.com` | `15.000.000 VNĐ` |
+| **`lethanhc`** | `123456` | Lê Thành C | `lethanhc@gmail.com` | `5.000.000 VNĐ` |
+
+---
+
+## 9. DANH SÁCH ĐỊA CHỈ TRUY CẬP HỆ THỐNG
 
 | Dịch vụ | Địa chỉ URL | Mô tả |
 | :--- | :--- | :--- |
 | **Giao diện Web iBanking** | `http://localhost:3000` | Trang giao diện chính của người dùng |
-| **Hộp thư xem OTP (Mailpit)** | `http://localhost:8025` | Xem mã OTP gửi giả lập cục bộ |
 | **API Gateway Swagger Docs** | `http://localhost:8000/docs` | Tài liệu API tập trung |
 | **User Service Docs** | `http://localhost:8001/docs` | API tài khoản & số dư |
 | **Tuition Service Docs** | `http://localhost:8002/docs` | API học phí TDTU |
 | **Payment Service Docs** | `http://localhost:8003/docs` | API thanh toán & OTP |
-| **Notification Service Docs** | `http://localhost:8004/docs` | API gửi email thông báo |
+| **Notification Service Docs** | `http://localhost:8004/docs` | API gửi email thông báo qua SMTP |
