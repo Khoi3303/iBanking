@@ -46,10 +46,18 @@ async def initiate_payment_saga(
     lock_token = str(uuid.uuid4()) if idempotency_key else None
 
     if lock_idemp_key:
+        acquired = False
         for _ in range(25):
             if await acquire_distributed_lock(lock_idemp_key, lock_token, ttl_seconds=10):
+                acquired = True
                 break
             await asyncio.sleep(0.05)
+
+        if not acquired:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Yêu cầu đang được xử lý, vui lòng thử lại."
+            )
 
     try:
         if idempotency_key:
@@ -233,13 +241,13 @@ async def confirm_payment_saga(
             detail=otp_msg
         )
 
-    # 3. Bước B: Chiếm Distributed Lock (Redis Lock có TTL 10s chống Deadlock)
+    # 3. Bước B: Chiếm Distributed Lock (Redis Lock có TTL 30s chống Deadlock)
     lock_user_key = f"lock:user:{tx.user_id}"
     lock_student_key = f"lock:student:{tx.student_code}"
     lock_token = str(uuid.uuid4())
 
-    user_locked = await acquire_distributed_lock(lock_user_key, lock_token, ttl_seconds=10)
-    student_locked = await acquire_distributed_lock(lock_student_key, lock_token, ttl_seconds=10)
+    user_locked = await acquire_distributed_lock(lock_user_key, lock_token, ttl_seconds=30)
+    student_locked = await acquire_distributed_lock(lock_student_key, lock_token, ttl_seconds=30)
 
     if not user_locked or not student_locked:
         # Nếu chưa chiếm được Lock, nhả lock một phần nếu có và báo bận (OTP vẫn còn nguyên)

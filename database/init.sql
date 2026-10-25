@@ -181,7 +181,7 @@ CREATE TABLE transactions (
     INDEX idx_user_id (user_id),
     INDEX idx_student_code (student_code),
     INDEX idx_status (status),
-    INDEX idx_idempotency (user_id, idempotency_key)
+    UNIQUE KEY uq_user_idempotency (user_id, idempotency_key)
 ) ENGINE=InnoDB;
 
 CREATE TABLE otp_tokens (
