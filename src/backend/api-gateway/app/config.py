@@ -5,12 +5,12 @@ class Settings(BaseSettings):
     PORT: int = 8000
     HOST: str = "0.0.0.0"
 
-    # JWT Config
-    JWT_SECRET_KEY: str = "ibanking-super-secret-key-tdtu-2026"
+    # JWT Config (Fail-fast: Bắt buộc cung cấp qua biến môi trường)
+    JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
 
-    # Khóa bí mật giao tiếp nội bộ
-    INTERNAL_API_KEY: str = "ibanking-internal-secret-token-2026"
+    # Khóa bí mật giao tiếp nội bộ (Fail-fast: Bắt buộc cung cấp qua biến môi trường)
+    INTERNAL_API_KEY: str
 
     # Internal Microservices Endpoints
     USER_SERVICE_URL: str = "http://user-service:8001"

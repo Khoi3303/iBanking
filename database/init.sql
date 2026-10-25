@@ -11,6 +11,21 @@ CREATE DATABASE IF NOT EXISTS tdtu_tuition_db CHARACTER SET utf8mb4 COLLATE utf8
 CREATE DATABASE IF NOT EXISTS ibanking_payment_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
+-- CẤP QUYỀN DATABASE SERVICE ACCOUNTS (SERVICE/DATA OWNERSHIP)
+-- Mỗi service sở hữu tài khoản và database riêng biệt, không dùng root
+-- --------------------------------------------------------
+CREATE USER IF NOT EXISTS 'ibanking_user_app'@'%' IDENTIFIED BY 'user_db_password_2026';
+GRANT ALL PRIVILEGES ON ibanking_user_db.* TO 'ibanking_user_app'@'%';
+
+CREATE USER IF NOT EXISTS 'ibanking_tuition_app'@'%' IDENTIFIED BY 'tuition_db_password_2026';
+GRANT ALL PRIVILEGES ON tdtu_tuition_db.* TO 'ibanking_tuition_app'@'%';
+
+CREATE USER IF NOT EXISTS 'ibanking_payment_app'@'%' IDENTIFIED BY 'payment_db_password_2026';
+GRANT ALL PRIVILEGES ON ibanking_payment_db.* TO 'ibanking_payment_app'@'%';
+
+FLUSH PRIVILEGES;
+
+-- --------------------------------------------------------
 -- 1. DATABASE CHO USER & ACCOUNT SERVICE
 -- --------------------------------------------------------
 USE ibanking_user_db;
@@ -45,15 +60,14 @@ CREATE TABLE account_transactions (
     INDEX idx_user_tx (user_id, created_at)
 ) ENGINE=InnoDB;
 
--- Dữ liệu mẫu người dùng iBanking (Mật khẩu mặc định: 123456 -> bcrypt hash)
--- bcrypt hash for '123456': $2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe
+-- Dữ liệu mẫu tài khoản người dùng thử nghiệm
 INSERT INTO users (id, username, password_hash, full_name, phone_number, email, balance) VALUES
-(1, 'nguyenvana', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Nguyễn Văn A', '0901234567', 'khoi18042006@gmail.com', 20000000.00),
-(2, 'tranthib', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Trần Thị B', '0912345678', 'tranthib@gmail.com', 15000000.00),
-(3, 'lethanhc', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Lê Thành C', '0987654321', 'lethanhc@gmail.com', 5000000.00),
-(4, 'lekhoi3303', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Lê Khôi', '0903303303', 'lekhoi3303@gmail.com', 20000000.00),
-(5, 'tienmobile2006', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Nguyễn Thanh Tiền', '0907123456', 'tienmobile2006@gmail.com', 20000000.00),
-(6, 'mensieu123', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Nguyễn Minh Đăng', '0908123456', 'Mensieu123@gmail.com', 20000000.00);
+(1, 'nguyenvana', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Nguyễn Văn A', '0901234567', 'nguyenvana@demo.ibanking.local', 20000000.00),
+(2, 'tranthib', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Trần Thị B', '0912345678', 'tranthib@demo.ibanking.local', 15000000.00),
+(3, 'lethanhc', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Lê Thành C', '0987654321', 'lethanhc@demo.ibanking.local', 5000000.00),
+(4, 'lekhoi3303', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Lê Khôi', '0903303303', 'lekhoi@demo.ibanking.local', 20000000.00),
+(5, 'tienmobile2006', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Nguyễn Thanh Tiền', '0907123456', 'tienmobile@demo.ibanking.local', 20000000.00),
+(6, 'mensieu123', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Nguyễn Minh Đăng', '0908123456', 'mensieu@demo.ibanking.local', 20000000.00);
 
 -- Dữ liệu mẫu lịch sử số dư ban đầu
 INSERT INTO account_transactions (user_id, amount, transaction_type, balance_after, reference_id, description) VALUES

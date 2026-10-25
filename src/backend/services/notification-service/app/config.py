@@ -5,15 +5,15 @@ class Settings(BaseSettings):
     PORT: int = 8004
     HOST: str = "0.0.0.0"
 
-    # Khóa xác thực API nội bộ
-    INTERNAL_API_KEY: str = "ibanking-internal-secret-token-2026"
+    # Khóa xác thực API nội bộ (Fail-fast: Bắt buộc cung cấp qua biến môi trường)
+    INTERNAL_API_KEY: str
 
-    # SMTP Configuration (Mặc định dùng Gmail SMTP thực tế)
+    # SMTP Configuration (Cấu hình gửi email thông báo OTP và biên nhận)
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
-    SMTP_FROM_EMAIL: str = "khoi18042006@gmail.com"
+    SMTP_FROM_EMAIL: str = "no-reply@ibanking.tdtu.edu.vn"
     SMTP_FROM_NAME: str = "iBanking TDTU Support"
     USE_TLS: bool = True
 

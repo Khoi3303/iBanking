@@ -67,8 +67,7 @@ GATEWAY_URL = os.getenv("GATEWAY_URL", "http://localhost:8000")
 USER_SERVICE_URL = os.getenv("USER_SERVICE_URL", "http://localhost:8001")
 TUITION_SERVICE_URL = os.getenv("TUITION_SERVICE_URL", "http://localhost:8002")
 PAYMENT_SERVICE_URL = os.getenv("PAYMENT_SERVICE_URL", "http://localhost:8003")
-NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL", "http://localhost:8004")
-INTERNAL_SECRET = os.getenv("INTERNAL_SECRET", "ibanking-internal-secret-token-2026")
+INTERNAL_SECRET = os.getenv("INTERNAL_API_KEY", os.getenv("INTERNAL_SECRET", ""))
 
 # Thử import httpx; nếu chưa cài đặt, thông báo rõ ràng
 try:

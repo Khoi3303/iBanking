@@ -25,10 +25,10 @@ echo.
 echo ========================================================
 echo   HE THONG DA SAN SANG!
 echo   - Giao dien: http://localhost:3000
-echo   - Tai khoan 1: nguyenvana     (khoi18042006@gmail.com)   | MK: 123456 | 20tr VND
-echo   - Tai khoan 2: lekhoi3303     (lekhoi3303@gmail.com)     | MK: 123456 | 20tr VND
-echo   - Tai khoan 3: tienmobile2006 (tienmobile2006@gmail.com) | MK: 123456 | 20tr VND
-echo   - Tai khoan 4: mensieu123     (Mensieu123@gmail.com)     | MK: 123456 | 20tr VND
-echo   - Ma OTP duoc gui truc tiep den Gmail that (Kiem tra Inbox / Spam)
+echo   - Tai khoan 1: nguyenvana     (nguyenvana@demo.ibanking.local) | MK: 123456 | 20tr VND
+echo   - Tai khoan 2: lekhoi3303     (lekhoi3303@demo.ibanking.local) | MK: 123456 | 20tr VND
+echo   - Tai khoan 3: tienmobile2006 (tienmobile@demo.ibanking.local) | MK: 123456 | 20tr VND
+echo   - Tai khoan 4: mensieu123     (mensieu@demo.ibanking.local)    | MK: 123456 | 20tr VND
+echo   - Luu y: De nhan OTP qua hop thu that, cap nhat SMTP_USER va SMTP_PASSWORD trong file .env
 echo ========================================================
 pause

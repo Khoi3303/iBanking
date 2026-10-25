@@ -3,7 +3,19 @@
 -- ========================================================
 SET NAMES utf8mb4;
 
--- 1. Dat lai trang thai hoa don ve UNPAID
+-- 1. Cap quyen cho cac Service Accounts neu chua co
+CREATE USER IF NOT EXISTS 'ibanking_user_app'@'%' IDENTIFIED BY 'user_db_password_2026';
+GRANT ALL PRIVILEGES ON ibanking_user_db.* TO 'ibanking_user_app'@'%';
+
+CREATE USER IF NOT EXISTS 'ibanking_tuition_app'@'%' IDENTIFIED BY 'tuition_db_password_2026';
+GRANT ALL PRIVILEGES ON tdtu_tuition_db.* TO 'ibanking_tuition_app'@'%';
+
+CREATE USER IF NOT EXISTS 'ibanking_payment_app'@'%' IDENTIFIED BY 'payment_db_password_2026';
+GRANT ALL PRIVILEGES ON ibanking_payment_db.* TO 'ibanking_payment_app'@'%';
+
+FLUSH PRIVILEGES;
+
+-- 2. Dat lai trang thai hoa don ve UNPAID
 USE tdtu_tuition_db;
 UPDATE tuition_invoices 
 SET status = 'UNPAID', paid_at = NULL, paid_by_user = NULL, transaction_ref = NULL 
@@ -13,26 +25,26 @@ WHERE student_code IN (
     '524H0016', '524H0017', '524H0018', '524H0019', '524H0020'
 );
 
--- 2. Dat lai so du nguoi dung va dong bo so cai (Ledger Consistency)
+-- 3. Dat lai so du nguoi dung va dong bo so cai (Ledger Consistency)
 USE ibanking_user_db;
-UPDATE users SET balance = 20000000.00 WHERE id = 1 OR username = 'nguyenvana';
-UPDATE users SET balance = 15000000.00 WHERE id = 2 OR username = 'tranthib';
-UPDATE users SET balance = 5000000.00 WHERE id = 3 OR username = 'lethanhc';
+UPDATE users SET balance = 20000000.00, email = 'nguyenvana@demo.ibanking.local' WHERE id = 1 OR username = 'nguyenvana';
+UPDATE users SET balance = 15000000.00, email = 'tranthib@demo.ibanking.local' WHERE id = 2 OR username = 'tranthib';
+UPDATE users SET balance = 5000000.00, email = 'lethanhc@demo.ibanking.local' WHERE id = 3 OR username = 'lethanhc';
 
 -- Tai khoan lekhoi3303
 INSERT INTO users (username, password_hash, full_name, phone_number, email, balance)
-VALUES ('lekhoi3303', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Lê Khôi', '0903303303', 'lekhoi3303@gmail.com', 20000000.00)
-ON DUPLICATE KEY UPDATE balance = 20000000.00, password_hash = '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', email = 'lekhoi3303@gmail.com';
+VALUES ('lekhoi3303', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Lê Khôi', '0903303303', 'lekhoi@demo.ibanking.local', 20000000.00)
+ON DUPLICATE KEY UPDATE balance = 20000000.00, password_hash = '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', email = 'lekhoi@demo.ibanking.local';
 
 -- Tai khoan tienmobile2006
 INSERT INTO users (username, password_hash, full_name, phone_number, email, balance)
-VALUES ('tienmobile2006', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Nguyễn Thanh Tiền', '0907123456', 'tienmobile2006@gmail.com', 20000000.00)
-ON DUPLICATE KEY UPDATE full_name = 'Nguyễn Thanh Tiền', balance = 20000000.00, password_hash = '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', email = 'tienmobile2006@gmail.com';
+VALUES ('tienmobile2006', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Nguyễn Thanh Tiền', '0907123456', 'tienmobile@demo.ibanking.local', 20000000.00)
+ON DUPLICATE KEY UPDATE full_name = 'Nguyễn Thanh Tiền', balance = 20000000.00, password_hash = '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', email = 'tienmobile@demo.ibanking.local';
 
 -- Tai khoan mensieu123
 INSERT INTO users (username, password_hash, full_name, phone_number, email, balance)
-VALUES ('mensieu123', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Nguyễn Minh Đăng', '0908123456', 'Mensieu123@gmail.com', 20000000.00)
-ON DUPLICATE KEY UPDATE full_name = 'Nguyễn Minh Đăng', balance = 20000000.00, password_hash = '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', email = 'Mensieu123@gmail.com';
+VALUES ('mensieu123', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Nguyễn Minh Đăng', '0908123456', 'mensieu@demo.ibanking.local', 20000000.00)
+ON DUPLICATE KEY UPDATE full_name = 'Nguyễn Minh Đăng', balance = 20000000.00, password_hash = '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', email = 'mensieu@demo.ibanking.local';
 
 -- Reset so cai bien dong so du (Account Ledger) khop chinh xac voi so du thuc te
 DELETE FROM account_transactions;

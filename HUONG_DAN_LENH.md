@@ -10,6 +10,7 @@ Trong thư mục gốc của dự án có sẵn các file script hỗ trợ thao
 
 | File Script | Mục đích sử dụng | Khi nào dùng? |
 | :--- | :--- | :--- |
+| **`setup.bat`** | Khởi tạo cấu hình môi trường `.env` tự động với các secret ngẫu nhiên bảo mật và tùy chọn chạy hệ thống. | Khi vừa `git clone` về máy lần đầu tiên. |
 | **`start.bat`** | Khởi động toàn bộ hệ thống (Build + MySQL + Redis + Microservices). | Khi mới mở máy tính, hoặc muốn khởi động toàn bộ hệ thống từ đầu. |
 | **`rebuild.bat`** | Rebuild và cập nhật nhanh các service đã sửa code. | Sau khi vừa sửa code Frontend, Gateway hoặc các service. |
 | **`reset_demo.bat`** | Đặt lại trạng thái dữ liệu demo ban đầu và số dư tài khoản về 20.000.000đ. | Dùng sau khi vừa thanh toán xong để kiểm thử lại từ đầu. |
@@ -191,12 +192,12 @@ Mật khẩu chung cho tất cả tài khoản: `123456`
 
 | Tên đăng nhập | Mật khẩu | Họ và tên | Email nhận mã OTP | Số dư khả dụng |
 | :--- | :--- | :--- | :--- | :--- |
-| **`nguyenvana`** | `123456` | Nguyễn Văn A | `khoi18042006@gmail.com` | `20.000.000 VNĐ` |
-| **`lekhoi3303`** | `123456` | Lê Khôi | `lekhoi3303@gmail.com` | `20.000.000 VNĐ` |
-| **`tienmobile2006`** | `123456` | Nguyễn Thanh Tiền | `tienmobile2006@gmail.com` | `20.000.000 VNĐ` |
-| **`mensieu123`** | `123456` | Nguyễn Minh Đăng | `Mensieu123@gmail.com` | `20.000.000 VNĐ` |
-| **`tranthib`** | `123456` | Trần Thị B | `tranthib@gmail.com` | `15.000.000 VNĐ` |
-| **`lethanhc`** | `123456` | Lê Thành C | `lethanhc@gmail.com` | `5.000.000 VNĐ` |
+| **`nguyenvana`** | `123456` | Nguyễn Văn A | `nguyenvana@demo.ibanking.local` | `20.000.000 VNĐ` |
+| **`lekhoi3303`** | `123456` | Lê Khôi | `lekhoi3303@demo.ibanking.local` | `20.000.000 VNĐ` |
+| **`tienmobile2006`** | `123456` | Nguyễn Thanh Tiền | `tienmobile@demo.ibanking.local` | `20.000.000 VNĐ` |
+| **`mensieu123`** | `123456` | Nguyễn Minh Đăng | `mensieu@demo.ibanking.local` | `20.000.000 VNĐ` |
+| **`tranthib`** | `123456` | Trần Thị B | `tranthib@demo.ibanking.local` | `15.000.000 VNĐ` |
+| **`lethanhc`** | `123456` | Lê Thành C | `lethanhc@demo.ibanking.local` | `5.000.000 VNĐ` |
 
 ---
 
