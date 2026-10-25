@@ -2,25 +2,15 @@
 # -*- coding: utf-8 -*-
 """
 =============================================================================
-iBanking TDTU - Automated Concurrency & Saga Verification Suite
+iBanking TDTU - Automated Concurrency, Idempotency & Saga Verification Suite
 Môn học: Kiến Trúc Hướng Dịch Vụ (SOA - CS504070, ĐH Tôn Đức Thắng)
 =============================================================================
-Kịch bản kiểm thử tự động chứng minh trọn vẹn Tiêu chí 6 (1.5 điểm)
-và Tiêu chí 8 (1.5 điểm) trong Rubric chấm điểm đồ án:
-
-1. Kịch bản Concurrency 1 (Double-Spending):
-   - Cùng một tài khoản thực hiện 2 giao dịch rút/thanh toán đồng thời tại cùng 1 mili-giây.
-   - Tổng tiền > Số dư khả dụng.
-   - Kỳ vọng: Đúng 1 request thành công, 1 request bị chặn với 400 Bad Request.
-   - Số dư tài khoản không bao giờ bị âm (Pessimistic Lock with_for_update).
-
-2. Kịch bản Concurrency 2 (Race Condition gạch nợ học phí):
-   - Hai người nộp tiền cùng xác nhận thanh toán cho 1 sinh viên tại cùng 1 mili-giây.
-   - Kỳ vọng: Đúng 1 người gạch nợ thành công, người thứ hai nhận 409 Conflict hoặc
-     được hệ thống Saga kích hoạt Compensating Refund bồi hoàn tiền an toàn.
-
-3. Kịch bản End-to-End (E2E) Flow & Health Check:
-   - Login -> Tra cứu MSSV -> Initiate Payment -> Lấy mã OTP -> Confirm -> Biên lai.
+Kịch bản kiểm thử tự động toàn diện cho PHASE 2:
+1. Distributed Tracing: Truy vết phân tán qua header X-Correlation-ID.
+2. Idempotency-Key: Chống trùng lặp giao dịch khi gửi nhiều request đồng thời.
+3. Concurrency 1 (Double-Spending): Chống âm số dư tài khoản khi thanh toán song song.
+4. Concurrency 2 (Tuition Race Condition & Saga Compensation): 2 người trả 1 hóa đơn.
+5. End-to-End Payment Flow: Hoàn chỉnh từ đăng nhập -> OTP Mailpit -> Xác nhận -> Số dư.
 =============================================================================
 """
 
@@ -31,7 +21,14 @@ import json
 import uuid
 import re
 import asyncio
+import subprocess
 from decimal import Decimal
+
+# Đảm bảo UTF-8 trên Windows console
+if sys.platform.startswith("win"):
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 # Cấu hình màu sắc Terminal (ANSI Escape Codes)
 class Colors:
@@ -62,14 +59,12 @@ def print_info(msg: str):
 def print_warn(msg: str):
     print(f"  {Colors.YELLOW}[WARN]{Colors.RESET} {msg}")
 
-# Cau hinh dia chi mang noi bo
+# Cấu hình URL hệ thống (Tất cả gọi qua API Gateway và Mailpit)
 GATEWAY_URL = os.getenv("GATEWAY_URL", "http://localhost:8000")
-USER_SERVICE_URL = os.getenv("USER_SERVICE_URL", "http://localhost:8001")
-TUITION_SERVICE_URL = os.getenv("TUITION_SERVICE_URL", "http://localhost:8002")
-PAYMENT_SERVICE_URL = os.getenv("PAYMENT_SERVICE_URL", "http://localhost:8003")
-INTERNAL_SECRET = os.getenv("INTERNAL_API_KEY", os.getenv("INTERNAL_SECRET", ""))
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+MAILPIT_URL = os.getenv("MAILPIT_URL", "http://localhost:8025")
 
-# Thử import httpx; nếu chưa cài đặt, thông báo rõ ràng
+# Kiểm tra thư viện httpx
 try:
     import httpx
 except ImportError:
@@ -82,27 +77,78 @@ except ImportError:
 # HELPER FUNCTIONS (TIỆN ÍCH HỖ TRỢ KIỂM THỬ)
 # =============================================================================
 
-async def reset_demo_database(client: httpx.AsyncClient) -> bool:
+def get_mysql_root_password() -> str:
+    """Đọc MYSQL_ROOT_PASSWORD trực tiếp từ file .env an toàn."""
+    env_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+    if os.path.exists(env_file):
+        with open(env_file, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("MYSQL_ROOT_PASSWORD="):
+                    return line.strip().split("=", 1)[1]
+    return os.getenv("MYSQL_ROOT_PASSWORD", "ibanking_root_secure_2026_tdtu")
+
+
+def reset_demo_database() -> bool:
     """Khôi phục trạng thái số dư người dùng và hóa đơn học phí về ban đầu."""
-    print_info("Đang khôi phục dữ liệu mẫu về trạng thái gốc...")
+    print_info("Đang khôi phục dữ liệu mẫu về trạng thái gốc qua reset_demo.sql...")
+    root_pw = get_mysql_root_password()
+    sql_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "database", "reset_demo.sql")
+    if not os.path.exists(sql_path):
+        print_warn(f"Không tìm thấy file {sql_path}")
+        return False
     try:
-        resp = await client.post(f"{GATEWAY_URL}/api/test/reset-demo", timeout=10.0)
-        if resp.status_code == 200:
-            print_pass("Dữ liệu mẫu đã được reset thành công (nguyenvana: 20tr, tranthib: 15tr, 524H0001: UNPAID 15tr).")
+        with open(sql_path, "r", encoding="utf-8") as f:
+            sql_content = f.read()
+        res = subprocess.run(
+            ["docker", "compose", "exec", "-T", "mysql", "mysql", "-uroot", f"-p{root_pw}"],
+            input=sql_content.encode("utf-8"),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=15
+        )
+        if res.returncode == 0:
+            print_pass("Dữ liệu mẫu đã được reset thành công.")
             return True
+        else:
+            print_warn(f"Reset DB exit code {res.returncode}: {res.stderr.decode('utf-8', errors='ignore')}")
+            return False
+    except Exception as e:
+        print_warn(f"Không thể chạy reset DB tự động: {e}")
+        return False
+
+
+async def clear_mailpit_messages(client: httpx.AsyncClient):
+    """Xóa sạch hòm thư Mailpit để kiểm thử OTP tươi mới."""
+    try:
+        await client.delete(f"{MAILPIT_URL}/api/v1/messages", timeout=3.0)
     except Exception:
         pass
 
-    # Fallback gọi trực tiếp vào internal service nếu Gateway chưa mở route
-    try:
-        headers = {"X-Internal-Secret": INTERNAL_SECRET}
-        await client.post(f"{USER_SERVICE_URL}/internal/users/reset-demo", headers=headers, timeout=5.0)
-        await client.post(f"{TUITION_SERVICE_URL}/internal/tuition/reset-demo", headers=headers, timeout=5.0)
-        print_pass("Dữ liệu mẫu đã được reset qua Service Port nội bộ.")
-        return True
-    except Exception as e:
-        print_warn(f"Không thể gọi API reset (Hệ thống có thể đang chạy với DB hiện tại): {e}")
-        return False
+
+async def get_latest_otp_mailpit(client: httpx.AsyncClient, recipient_email: str, max_retries: int = 15) -> str:
+    """Trích xuất mã OTP từ email nhận được trong Mailpit."""
+    for attempt in range(max_retries):
+        try:
+            r = await client.get(f"{MAILPIT_URL}/api/v1/messages", timeout=3.0)
+            if r.status_code == 200:
+                messages = r.json().get("messages", [])
+                for msg in messages:
+                    subject = msg.get("Subject", "")
+                    if "OTP" in subject:
+                        # Kiểm tra người nhận
+                        to_list = [addr.get("Address", "") for addr in msg.get("To", [])]
+                        if not recipient_email or recipient_email in to_list:
+                            match = re.search(r"(\d{6})", subject)
+                            if match:
+                                return match.group(1)
+                            snippet = msg.get("Snippet", "")
+                            match_snip = re.search(r"(\d{6})", snippet)
+                            if match_snip:
+                                return match_snip.group(1)
+        except Exception:
+            pass
+        await asyncio.sleep(0.4)
+    raise TimeoutError(f"Không tìm thấy email OTP trong Mailpit cho {recipient_email}")
 
 
 async def login_user(client: httpx.AsyncClient, username: str, password: str = "123456") -> dict:
@@ -114,262 +160,420 @@ async def login_user(client: httpx.AsyncClient, username: str, password: str = "
     return resp.json()
 
 
-async def get_latest_otp(client: httpx.AsyncClient, email: str, max_retries: int = 10, transaction_id: str = None) -> str:
-    """Truy van ma OTP truc tiep tu Payment Service internal endpoint."""
-    if transaction_id:
-        for attempt in range(max_retries):
-            try:
-                resp = await client.get(
-                    f"{PAYMENT_SERVICE_URL}/internal/otp/{transaction_id}",
-                    headers={"X-Internal-Secret": INTERNAL_SECRET},
-                    timeout=3.0
-                )
-                if resp.status_code == 200:
-                    otp = resp.json().get("otp_code")
-                    if otp:
-                        return str(otp)
-            except Exception:
-                pass
-            await asyncio.sleep(0.5)
+# =============================================================================
+# BÀI KIỂM THỬ 1: DISTRIBUTED TRACING (X-CORRELATION-ID)
+# =============================================================================
+async def test_scenario_tracing(client: httpx.AsyncClient) -> bool:
+    """
+    Kỳ vọng:
+    1. Gửi request có X-Correlation-ID -> Gateway và các service hạ tầng giữ nguyên CID trong response.
+    2. Gửi request không có header -> Gateway tự sinh UUID hợp lệ và trả về trong response.
+    """
+    print_header("Kịch bản 1: Kiểm thử Truy vết Phân tán (X-Correlation-ID Tracing)")
+    
+    # 1. Test với CID tự định nghĩa
+    custom_cid = f"trace-test-{uuid.uuid4().hex[:12]}"
+    print_info(f"Gửi request kèm header 'X-Correlation-ID: {custom_cid}'...")
+    r1 = await client.get(f"{GATEWAY_URL}/health", headers={"X-Correlation-ID": custom_cid})
+    received_cid_1 = r1.headers.get("X-Correlation-ID") or r1.headers.get("x-correlation-id")
 
-    raise TimeoutError(f"Khong tim thay ma OTP cho giao dich {transaction_id}")
+    if received_cid_1 == custom_cid:
+        print_pass(f"Gateway bảo toàn chính xác X-Correlation-ID nhận được: {received_cid_1}")
+    else:
+        print_fail(f"Lỗi: Kỳ vọng {custom_cid}, nhận được {received_cid_1}")
+        return False
 
+    # 2. Test tự động sinh CID nếu client không gửi
+    print_info("Gửi request KHÔNG kèm header X-Correlation-ID (kỳ vọng Gateway tự cấp phát)...")
+    r2 = await client.get(f"{GATEWAY_URL}/health")
+    received_cid_2 = r2.headers.get("X-Correlation-ID") or r2.headers.get("x-correlation-id")
+
+    if received_cid_2 and len(received_cid_2) >= 16:
+        print_pass(f"Gateway đã tự động tạo X-Correlation-ID mới: {received_cid_2}")
+    else:
+        print_fail(f"Lỗi: Không tìm thấy X-Correlation-ID tự sinh hợp lệ trong header response: {r2.headers}")
+        return False
+
+    print_pass("KỊCH BẢN TRACING HOÀN TOÀN ĐẠT CHUẨN!")
+    return True
 
 
 # =============================================================================
-# KỊCH BẢN KIỂM THỬ 1: DOUBLE-SPENDING (CHỐNG TRỪ TIỀN 2 LẦN / ÂM SỐ DƯ)
+# BÀI KIỂM THỬ 2: PAYMENT IDEMPOTENCY (IDEMPOTENCY-KEY DEDUPLICATION)
 # =============================================================================
-async def test_scenario_1_double_spending(client: httpx.AsyncClient) -> bool:
+async def test_scenario_idempotency(client: httpx.AsyncClient) -> bool:
     """
-    Kịch bản: Người dùng có 20,000,000 VNĐ.
-    Thực hiện cùng lúc 2 request trừ tiền 15,000,000 VNĐ tại CÙNG MỘT THỜI ĐIỂM (Delta t = 0ms).
-    Tổng tiền yêu cầu: 30,000,000 VNĐ > 20,000,000 VNĐ.
-    Kỳ vọng: Khóa dòng PESSIMISTIC LOCK (SELECT ... FOR UPDATE) buộc 1 request thành công
-    và 1 request bị từ chối 400. Số dư tài khoản không bị âm!
+    Kịch bản: Bấm liên tiếp 5 lần 'Xác nhận' với cùng 1 Idempotency-Key trong cùng 1 mili-giây.
+    Kỳ vọng:
+    1. Cả 5 request đều nhận HTTP 201 Created (hoặc 200 OK).
+    2. Cả 5 request đều trả về CHÍNH XÁC cùng 1 transaction_id.
+    3. Hệ thống chỉ sinh duy nhất 1 phiên giao dịch trong DB và chỉ gửi 1 email OTP.
     """
-    print_header("Kịch bản 1: Kiểm thử Concurrency Double-Spending (Chống âm số dư)")
-    print_info("Thiết lập: User nguyenvana (Số dư ban đầu: 20,000,000 VNĐ).")
-    print_info("Gửi 2 request trừ tiền 15,000,000 VNĐ đồng thời (Tổng: 30,000,000 VNĐ)...")
+    print_header("Kịch bản 2: Kiểm thử Tính Bất Khả Biến (Payment Idempotency-Key)")
 
-    # Dùng API nội bộ có xác thực Secret để kiểm tra trực tiếp lõi Database Locking
-    url = f"{USER_SERVICE_URL}/internal/users/1/deduct"
-    headers = {"X-Internal-Secret": INTERNAL_SECRET}
+    # Đăng nhập
+    login_data = await login_user(client, "nguyenvana", "123456")
+    token = login_data["access_token"]
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
 
-    tx_id_1 = f"TEST_SPEND_A_{uuid.uuid4().hex[:8]}"
-    tx_id_2 = f"TEST_SPEND_B_{uuid.uuid4().hex[:8]}"
+    # Sinh 1 Idempotency-Key duy nhất
+    idempotency_key = f"idemp-run-{uuid.uuid4().hex}"
+    headers["Idempotency-Key"] = idempotency_key
 
-    payload_1 = {"amount": 15000000.00, "transaction_id": tx_id_1, "description": "Thanh toán Concurrency 1"}
-    payload_2 = {"amount": 15000000.00, "transaction_id": tx_id_2, "description": "Thanh toán Concurrency 2"}
+    payload = {
+        "student_code": "524H0001",
+        "amount": 15000000.00,
+        "invoice_id": 1
+    }
 
+    print_info(f"Bắn đồng thời 5 request 'POST /api/payments/initiate' với Idempotency-Key: {idempotency_key}...")
     t_start = time.perf_counter()
-    # Bắn đồng thời cả 2 request trong cùng 1 Event Loop tick
-    req1 = client.post(url, json=payload_1, headers=headers)
-    req2 = client.post(url, json=payload_2, headers=headers)
-    resps = await asyncio.gather(req1, req2, return_exceptions=True)
+
+    tasks = [
+        client.post(f"{GATEWAY_URL}/api/payments/initiate", json=payload, headers=headers)
+        for _ in range(5)
+    ]
+    responses = await asyncio.gather(*tasks, return_exceptions=True)
     t_elapsed = (time.perf_counter() - t_start) * 1000
+    print_info(f"Đã nhận 5 response sau {t_elapsed:.1f}ms.")
 
-    print_info(f"Cả 2 request đã hoàn tất xử lý song song trong {t_elapsed:.2f} ms.")
-
+    tx_ids = []
     status_codes = []
-    for i, r in enumerate(resps, 1):
+    for i, r in enumerate(responses, 1):
         if isinstance(r, Exception):
             print_fail(f"Request {i} gặp ngoại lệ: {r}")
             return False
         status_codes.append(r.status_code)
-        print_info(f"Request {i} (Tx: {payload_1['transaction_id'] if i==1 else payload_2['transaction_id']}): HTTP {r.status_code} - {r.text[:80]}")
+        if r.status_code in [200, 201]:
+            data = r.json()
+            tx_ids.append(data.get("transaction_id"))
+            print_info(f"Request {i}: HTTP {r.status_code} - TxID: {data.get('transaction_id')} - Msg: {data.get('message')}")
+        else:
+            print_fail(f"Request {i} trả về lỗi HTTP {r.status_code}: {r.text}")
 
-    # Kiểm tra điều kiện: Phải có đúng 1 thành công (200) và 1 thất bại (400)
-    has_one_success = (status_codes.count(200) == 1)
-    has_one_rejected = (status_codes.count(400) == 1)
-
-    if not (has_one_success and has_one_rejected):
-        print_fail(f"Kỳ vọng: 1 HTTP 200 và 1 HTTP 400. Thực tế nhận được: {status_codes}")
+    # Kiểm tra tất cả status code là 200 hoặc 201
+    all_success = all(code in [200, 201] for code in status_codes)
+    if not all_success:
+        print_fail(f"Một số request không thành công: {status_codes}")
         return False
 
-    print_pass("Hệ thống đã chấp thuận đúng 1 giao dịch và từ chối giao dịch còn lại do không đủ tiền!")
-
-    # Kiểm tra số dư cuối cùng trong cơ sở dữ liệu
-    r_user = await client.get(f"{USER_SERVICE_URL}/internal/users/1", headers=headers)
-    final_balance = Decimal(str(r_user.json().get("balance", 0)))
-    expected_balance = Decimal("5000000.00")
-
-    print_info(f"Số dư thực tế trong DB: {final_balance:,.0f} VNĐ (Kỳ vọng: {expected_balance:,.0f} VNĐ).")
-
-    if final_balance == expected_balance:
-        print_pass(f"Số dư tài khoản chính xác tuyệt đối! Không có hiện tượng mất tiền hay âm số dư (Final: {final_balance:,.0f} VNĐ).")
-        print_pass("KỊCH BẢN 1 HOÀN TOÀN ĐẠT CHUẨN RUBRIC (0.75 / 0.75 ĐIỂM)!")
+    # Kiểm tra tất cả tx_id là duy nhất 1 ID
+    unique_tx_ids = set(tx_ids)
+    if len(unique_tx_ids) == 1 and None not in unique_tx_ids:
+        print_pass(f"Cả 5 request đều tái sử dụng CHÍNH XÁC cùng 1 giao dịch: {tx_ids[0]}")
+        print_pass("Hệ thống Idempotency đã ngăn chặn hoàn toàn việc tạo trùng lặp giao dịch và OTP rác!")
+        print_pass("KỊCH BẢN IDEMPOTENCY HOÀN TOÀN ĐẠT CHUẨN!")
         return True
     else:
-        print_fail(f"Số dư không khớp! Thực tế: {final_balance}, Kỳ vọng: {expected_balance}")
+        print_fail(f"Phát hiện trùng lặp hoặc sinh nhiều giao dịch khác nhau: {unique_tx_ids}")
         return False
 
 
 # =============================================================================
-# KỊCH BẢN KIỂM THỬ 2: RACE CONDITION HỌC PHÍ (2 NGƯỜI CÙNG TRẢ 1 HÓA ĐƠN)
+# BÀI KIỂM THỬ 3: DOUBLE-SPENDING (CHỐNG TRỪ TIỀN 2 LẦN / ÂM SỐ DƯ)
 # =============================================================================
-async def test_scenario_2_race_condition(client: httpx.AsyncClient) -> bool:
+async def test_scenario_double_spending(client: httpx.AsyncClient) -> bool:
     """
-    Kịch bản: Sinh viên 524H0001 có khoản nợ 15,000,000 VNĐ.
-    Hai phụ huynh (nguyenvana và tranthib) cùng bấm xác nhận gạch nợ tại CÙNG MỘT THỜI ĐIỂM.
-    Kỳ vọng: Khóa dòng Pessimistic trên invoice_id buộc đúng 1 người gạch nợ thành công (200),
-    người còn lại nhận 409 Conflict. Hóa đơn chỉ chuyển sang PAID đúng 1 lần!
+    Kịch bản: Người dùng nguyenvana có 20,000,000 VNĐ.
+    Khởi tạo và xác thực thanh toán đồng thời cho 2 giao dịch mỗi giao dịch 15,000,000 VNĐ.
+    Tổng: 30,000,000 VNĐ > 20,000,000 VNĐ.
+    Kỳ vọng: Khóa dòng Pessimistic Lock tại DB bảo đảm:
+    - Đúng 1 giao dịch thành công (HTTP 200).
+    - Đúng 1 giao dịch thất bại do không đủ số dư.
+    - Số dư tài khoản tuyệt đối không bị âm!
     """
-    print_header("Kịch bản 2: Kiểm thử Concurrency Race Condition (2 người cùng trả 1 hóa đơn)")
-    print_info("Thiết lập: Sinh viên 524H0001 (Khoản nợ: 15,000,000 VNĐ, UNPAID).")
-    print_info("Bắn đồng thời 2 lệnh gạch nợ từ 'nguyenvana' và 'tranthib'...")
+    print_header("Kịch bản 3: Kiểm thử Concurrency Double-Spending (Chống âm số dư)")
+    
+    # Đăng nhập nguyenvana
+    login_data = await login_user(client, "nguyenvana", "123456")
+    token = login_data["access_token"]
+    user_initial_balance = Decimal(str(login_data["user"]["balance"]))
+    print_info(f"User nguyenvana - Số dư khả dụng hiện tại: {user_initial_balance:,.0f} VNĐ.")
 
-    url = f"{TUITION_SERVICE_URL}/internal/tuition/pay"
-    headers = {"X-Internal-Secret": INTERNAL_SECRET}
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
-    tx_id_1 = f"TEST_RACE_P1_{uuid.uuid4().hex[:8]}"
-    tx_id_2 = f"TEST_RACE_P2_{uuid.uuid4().hex[:8]}"
+    # 1. Tra cứu học phí MSSV 524H0005 và 524H0006
+    r_t1 = await client.get(f"{GATEWAY_URL}/api/tuition/students/524H0005", headers=headers)
+    amt1 = float(r_t1.json()["amount"])
+    inv1 = r_t1.json()["invoice_id"]
 
-    payload_1 = {
-        "student_code": "524H0001",
-        "amount": 15000000.00,
-        "username": "nguyenvana",
-        "transaction_id": tx_id_1,
-        "invoice_id": 1
-    }
-    payload_2 = {
-        "student_code": "524H0001",
-        "amount": 15000000.00,
-        "username": "tranthib",
-        "transaction_id": tx_id_2,
-        "invoice_id": 1
-    }
+    r_t2 = await client.get(f"{GATEWAY_URL}/api/tuition/students/524H0006", headers=headers)
+    amt2 = float(r_t2.json()["amount"])
+    inv2 = r_t2.json()["invoice_id"]
 
+    print_info(f"Khoản 1 (524H0005): {amt1:,.0f} VNĐ | Khoản 2 (524H0006): {amt2:,.0f} VNĐ (Tổng: {amt1+amt2:,.0f} VNĐ > 20,000,000 VNĐ)")
+
+    # 2. Khởi tạo giao dịch 1
+    await clear_mailpit_messages(client)
+    r_init1 = await client.post(
+        f"{GATEWAY_URL}/api/payments/initiate",
+        json={"student_code": "524H0005", "amount": amt1, "invoice_id": inv1},
+        headers=headers
+    )
+    if r_init1.status_code != 201:
+        print_fail(f"Khởi tạo giao dịch 1 thất bại: {r_init1.text}")
+        return False
+    tx1 = r_init1.json()
+    otp1 = await get_latest_otp_mailpit(client, "nguyenvana@ibanking.tdtu.edu.vn")
+    print_info(f"Giao dịch 1 đã tạo: TxID {tx1['transaction_id'][:8]}... - OTP {otp1}")
+
+    # 3. Khởi tạo giao dịch 2
+    await clear_mailpit_messages(client)
+    r_init2 = await client.post(
+        f"{GATEWAY_URL}/api/payments/initiate",
+        json={"student_code": "524H0006", "amount": amt2, "invoice_id": inv2},
+        headers=headers
+    )
+    if r_init2.status_code != 201:
+        print_fail(f"Khởi tạo giao dịch 2 thất bại: {r_init2.text}")
+        return False
+    tx2 = r_init2.json()
+    otp2 = await get_latest_otp_mailpit(client, "nguyenvana@ibanking.tdtu.edu.vn")
+    print_info(f"Giao dịch 2 đã tạo: TxID {tx2['transaction_id'][:8]}... - OTP {otp2}")
+
+    # 4. Bắn đồng thời 2 lệnh confirm qua Gateway
+    print_info("Bắn đồng thời 2 lệnh 'POST /api/payments/confirm'...")
     t_start = time.perf_counter()
-    req1 = client.post(url, json=payload_1, headers=headers)
-    req2 = client.post(url, json=payload_2, headers=headers)
-    resps = await asyncio.gather(req1, req2, return_exceptions=True)
-    t_elapsed = (time.perf_counter() - t_start) * 1000
+    task1 = client.post(
+        f"{GATEWAY_URL}/api/payments/confirm",
+        json={"transaction_id": tx1["transaction_id"], "otp_code": otp1},
+        headers=headers
+    )
+    task2 = client.post(
+        f"{GATEWAY_URL}/api/payments/confirm",
+        json={"transaction_id": tx2["transaction_id"], "otp_code": otp2},
+        headers=headers
+    )
 
-    print_info(f"Cả 2 request gạch nợ đã hoàn tất xử lý trong {t_elapsed:.2f} ms.")
+    resps = await asyncio.gather(task1, task2, return_exceptions=True)
+    t_elapsed = (time.perf_counter() - t_start) * 1000
+    print_info(f"Đã xử lý xong 2 request song song trong {t_elapsed:.1f}ms.")
 
     status_codes = []
     for i, r in enumerate(resps, 1):
         if isinstance(r, Exception):
-            print_fail(f"Request {i} gặp lỗi: {r}")
+            print_fail(f"Giao dịch {i} exception: {r}")
             return False
         status_codes.append(r.status_code)
-        print_info(f"Request {i}: HTTP {r.status_code} - {r.text[:80]}")
+        print_info(f"Giao dịch {i}: HTTP {r.status_code} - {r.text[:90]}")
 
     has_one_success = (status_codes.count(200) == 1)
-    has_one_conflict = (status_codes.count(409) == 1)
+    has_one_failure = any(code in [400, 409] for code in status_codes)
 
-    if not (has_one_success and has_one_conflict):
-        print_fail(f"Kỳ vọng: 1 HTTP 200 (Thành công) và 1 HTTP 409 (Conflict). Thực tế: {status_codes}")
+    if not (has_one_success and has_one_failure):
+        print_fail(f"Kỳ vọng 1 thành công (200) và 1 từ chối (400/409). Thực tế: {status_codes}")
         return False
 
-    print_pass("Hệ thống đã gạch nợ cho người nhanh hơn và từ chối 409 Conflict cho người đến sau!")
+    # 5. Kiểm tra số dư cuối cùng
+    r_me = await client.get(f"{GATEWAY_URL}/api/users/me", headers=headers)
+    final_balance = Decimal(str(r_me.json()["balance"]))
+    expected_balances = [
+        user_initial_balance - Decimal(str(amt1)),
+        user_initial_balance - Decimal(str(amt2))
+    ]
+    print_info(f"Số dư thực tế trong tài khoản: {final_balance:,.0f} VNĐ (Kỳ vọng: {', '.join(f'{b:,.0f}' for b in expected_balances)} VNĐ).")
 
-    # Kiểm tra trạng thái hóa đơn
-    r_invoice = await client.get(f"{TUITION_SERVICE_URL}/tuition/students/524H0001")
-    inv_data = r_invoice.json()
-    print_info(f"Trạng thái hóa đơn sau xử lý: {inv_data.get('status')} - Người nộp: {inv_data.get('message')}")
-
-    if inv_data.get("status") == "PAID" and inv_data.get("can_pay") is False:
-        print_pass("Hóa đơn học phí đã được đánh dấu PAID và khóa thanh toán an toàn.")
-        print_pass("KỊCH BẢN 2 HOÀN TOÀN ĐẠT CHUẨN RUBRIC (0.75 / 0.75 ĐIỂM)!")
+    if final_balance in expected_balances and final_balance >= 0:
+        print_pass("Số dư chuẩn xác! Không bị âm và không có hiện tượng Double-Spending!")
+        print_pass("KỊCH BẢN CONCURRENCY 1 HOÀN TOÀN ĐẠT CHUẨN!")
         return True
     else:
-        print_fail(f"Hóa đơn ở trạng thái bất thường: {inv_data}")
+        print_fail(f"Số dư sai lệch: {final_balance}")
         return False
 
 
 # =============================================================================
-# KỊCH BẢN KIỂM THỬ 3: TOÀN BỘ LUỒNG END-TO-END (E2E) & SAGA ORCHESTRATION
+# BÀI KIỂM THỬ 4: TUITION RACE CONDITION & SAGA COMPENSATING ROLLBACK
 # =============================================================================
-async def test_scenario_3_end_to_end_payment(client: httpx.AsyncClient) -> bool:
+async def test_scenario_race_condition(client: httpx.AsyncClient) -> bool:
     """
-    Kịch bản: Toàn bộ quy trình đóng học phí thực tế của người dùng:
-    1. Đăng nhập người dùng qua API Gateway nhận JWT Token.
-    2. Tra cứu thông tin sinh viên và học phí.
-    3. Khởi tạo thanh toán (/payments/initiate) -> Sinh OTP có TTL 300s.
-    4. Lấy mã OTP tự động từ Payment Service.
-    5. Xác thực OTP (/payments/confirm) -> Chạy Saga Trừ tiền, Gạch nợ, Gửi Mail.
-    6. Kiểm tra số dư và danh sách giao dịch.
+    Kịch bản: Hai người dùng 'nguyenvana' và 'tranthib' cùng trả tiền học phí
+    cho sinh viên 524H0001 (15,000,000 VNĐ, UNPAID) tại cùng 1 mili-giây.
+    Kỳ vọng:
+    - Đúng 1 người gạch nợ thành công (HTTP 200).
+    - Người đến sau nhận 409 Conflict hoặc hệ thống Saga kích hoạt Compensating Refund
+      bồi hoàn số dư ngay lập tức.
+    - Hóa đơn sinh viên 524H0001 chỉ bị gạch nợ đúng 1 lần!
     """
-    print_header("Kịch bản 3: Kiểm thử End-to-End (E2E) qua API Gateway & Saga")
+    print_header("Kịch bản 4: Kiểm thử Race Condition Học phí & Saga Compensating Rollback")
+
+    # 1. Đăng nhập 2 tài khoản
+    login_a = await login_user(client, "nguyenvana", "123456")
+    token_a = login_a["access_token"]
+    headers_a = {"Authorization": f"Bearer {token_a}", "Content-Type": "application/json"}
+
+    login_b = await login_user(client, "tranthib", "123456")
+    token_b = login_b["access_token"]
+    headers_b = {"Authorization": f"Bearer {token_b}", "Content-Type": "application/json"}
+
+    print_info("Khởi tạo 2 phiên giao dịch song song cho cùng sinh viên 524H0001...")
+
+    # Khởi tạo cho A
+    await clear_mailpit_messages(client)
+    r_init_a = await client.post(
+        f"{GATEWAY_URL}/api/payments/initiate",
+        json={"student_code": "524H0001", "amount": 15000000.00, "invoice_id": 1},
+        headers=headers_a
+    )
+    if r_init_a.status_code != 201:
+        print_fail(f"User A initiate fail: {r_init_a.text}")
+        return False
+    tx_a = r_init_a.json()
+    otp_a = await get_latest_otp_mailpit(client, "nguyenvana@ibanking.tdtu.edu.vn")
+    print_info(f"User A đã nhận OTP: {otp_a} (TxID: {tx_a['transaction_id'][:8]}...)")
+
+    # Khởi tạo cho B
+    await clear_mailpit_messages(client)
+    r_init_b = await client.post(
+        f"{GATEWAY_URL}/api/payments/initiate",
+        json={"student_code": "524H0001", "amount": 15000000.00, "invoice_id": 1},
+        headers=headers_b
+    )
+    if r_init_b.status_code != 201:
+        print_fail(f"User B initiate fail: {r_init_b.text}")
+        return False
+    tx_b = r_init_b.json()
+    otp_b = await get_latest_otp_mailpit(client, "tranthib@ibanking.tdtu.edu.vn")
+    print_info(f"User B đã nhận OTP: {otp_b} (TxID: {tx_b['transaction_id'][:8]}...)")
+
+    # Bắn đồng thời 2 lệnh confirm
+    print_info("Bắn đồng thời 2 lệnh confirm từ User A và User B cho cùng 1 hóa đơn sinh viên...")
+    t_start = time.perf_counter()
+    task_a = client.post(
+        f"{GATEWAY_URL}/api/payments/confirm",
+        json={"transaction_id": tx_a["transaction_id"], "otp_code": otp_a},
+        headers=headers_a
+    )
+    task_b = client.post(
+        f"{GATEWAY_URL}/api/payments/confirm",
+        json={"transaction_id": tx_b["transaction_id"], "otp_code": otp_b},
+        headers=headers_b
+    )
+
+    resps = await asyncio.gather(task_a, task_b, return_exceptions=True)
+    t_elapsed = (time.perf_counter() - t_start) * 1000
+    print_info(f"Đã xử lý xong 2 request trong {t_elapsed:.1f}ms.")
+
+    status_codes = []
+    for i, r in enumerate(resps, 1):
+        who = "User A" if i == 1 else "User B"
+        if isinstance(r, Exception):
+            print_fail(f"{who} gặp lỗi: {r}")
+            return False
+        status_codes.append(r.status_code)
+        print_info(f"{who}: HTTP {r.status_code} - {r.text[:90]}")
+
+    has_one_200 = (status_codes.count(200) == 1)
+    has_one_conflict = any(code in [400, 409] for code in status_codes)
+
+    if not (has_one_200 and has_one_conflict):
+        print_fail(f"Kỳ vọng đúng 1 HTTP 200 và 1 lỗi (400/409). Nhận được: {status_codes}")
+        return False
+
+    print_pass("Đúng 1 người thanh toán thành công, người thứ hai nhận phản hồi an toàn từ hệ thống!")
+
+    # Kiểm tra hóa đơn
+    r_check = await client.get(f"{GATEWAY_URL}/api/tuition/students/524H0001", headers=headers_a)
+    invoice_data = r_check.json()
+    if invoice_data.get("status") == "PAID" and invoice_data.get("can_pay") is False:
+        print_pass("Hóa đơn học phí đã được chốt PAID đúng 1 lần và khóa thanh toán an toàn!")
+        print_pass("KỊCH BẢN RACE CONDITION & SAGA HOÀN TOÀN ĐẠT CHUẨN!")
+        return True
+    else:
+        print_fail(f"Trạng thái hóa đơn bất thường: {invoice_data}")
+        return False
+
+
+# =============================================================================
+# BÀI KIỂM THỬ 5: END-TO-END FLOW (E2E)
+# =============================================================================
+async def test_scenario_end_to_end(client: httpx.AsyncClient) -> bool:
+    """
+    Toàn bộ quy trình thanh toán thực tế của người dùng:
+    1. Đăng nhập.
+    2. Tra cứu MSSV 524H0001.
+    3. Initiate thanh toán kèm Idempotency-Key.
+    4. Trích xuất mã OTP từ Mailpit.
+    5. Confirm thanh toán và kích hoạt Saga.
+    6. Kiểm tra số dư và lịch sử giao dịch.
+    """
+    print_header("Kịch bản 5: Toàn bộ Luồng Thanh toán End-to-End (E2E)")
 
     # 1. Đăng nhập
-    print_info("Bước 1: Đăng nhập tài khoản 'nguyenvana' qua API Gateway...")
     login_data = await login_user(client, "nguyenvana", "123456")
     token = login_data["access_token"]
     user_info = login_data["user"]
     initial_balance = Decimal(str(user_info["balance"]))
-    print_pass(f"Đăng nhập thành công! Token: {token[:15]}... - Số dư: {initial_balance:,.0f} VNĐ")
-
-    headers = {"Authorization": f"Bearer {token}"}
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    print_pass(f"Đăng nhập thành công! User: {user_info['username']} - Số dư: {initial_balance:,.0f} VNĐ")
 
     # 2. Tra cứu học phí
-    print_info("Bước 2: Tra cứu thông tin học phí sinh viên '524H0001'...")
     r_tuition = await client.get(f"{GATEWAY_URL}/api/tuition/students/524H0001", headers=headers)
     if r_tuition.status_code != 200:
-        print_fail(f"Tra cứu thất bại: {r_tuition.text}")
+        print_fail(f"Tra cứu học phí thất bại: {r_tuition.text}")
         return False
-    tuition_data = r_tuition.json()
-    tuition_amount = Decimal(str(tuition_data["amount"]))
-    print_pass(f"Tìm thấy: {tuition_data['student_name']} - {tuition_data['semester']} - Cần đóng: {tuition_amount:,.0f} VNĐ")
+    tuition = r_tuition.json()
+    tuition_amount = Decimal(str(tuition["amount"]))
+    print_pass(f"Tìm thấy: {tuition['student_name']} - {tuition['semester']} - Cần nộp: {tuition_amount:,.0f} VNĐ")
 
     # 3. Khởi tạo thanh toán
-    print_info("Bước 3: Khởi tạo thanh toán và yêu cầu sinh mã OTP...")
-    initiate_payload = {
-        "student_code": "524H0001",
-        "amount": float(tuition_amount),
-        "invoice_id": tuition_data.get("invoice_id")
-    }
-    r_init = await client.post(f"{GATEWAY_URL}/api/payments/initiate", json=initiate_payload, headers=headers)
+    await clear_mailpit_messages(client)
+    idemp_key = f"e2e-key-{uuid.uuid4().hex}"
+    headers["Idempotency-Key"] = idemp_key
+
+    r_init = await client.post(
+        f"{GATEWAY_URL}/api/payments/initiate",
+        json={"student_code": "524H0001", "amount": float(tuition_amount), "invoice_id": tuition.get("invoice_id")},
+        headers=headers
+    )
     if r_init.status_code != 201:
         print_fail(f"Khởi tạo thanh toán thất bại: {r_init.text}")
         return False
     init_data = r_init.json()
     tx_id = init_data["transaction_id"]
-    print_pass(f"Giao dịch khởi tạo thành công! TxID: {tx_id} - TTL: {init_data.get('expires_in_seconds')}s")
+    print_pass(f"Giao dịch đã tạo thành công! TxID: {tx_id} - TTL: {init_data.get('expires_in_seconds')}s")
 
-    # 4. Trích xuất mã OTP xác thực
-    print_info("Bước 4: Kiểm tra và trích xuất mã OTP giao dịch...")
-    otp_code = await get_latest_otp(client, user_info["email"], transaction_id=tx_id)
-    print_pass(f"Đã nhận được mã OTP hợp lệ: {otp_code}")
+    # 4. Lấy OTP từ Mailpit
+    otp = await get_latest_otp_mailpit(client, user_info["email"])
+    print_pass(f"Đã nhận OTP hợp lệ từ Mailpit: {otp}")
 
-    # 5. Xác thực OTP và thực thi Saga
-    print_info("Bước 5: Gửi mã OTP xác nhận thanh toán (Kích hoạt Saga Orchestrator)...")
-    confirm_payload = {
-        "transaction_id": tx_id,
-        "otp_code": otp_code
-    }
-    r_confirm = await client.post(f"{GATEWAY_URL}/api/payments/confirm", json=confirm_payload, headers=headers)
+    # 5. Xác nhận giao dịch
+    r_confirm = await client.post(
+        f"{GATEWAY_URL}/api/payments/confirm",
+        json={"transaction_id": tx_id, "otp_code": otp},
+        headers=headers
+    )
     if r_confirm.status_code != 200:
-        print_fail(f"Xác thực thanh toán thất bại: {r_confirm.text}")
+        print_fail(f"Xác nhận OTP thất bại: {r_confirm.text}")
         return False
     confirm_data = r_confirm.json()
-    print_pass(f"Giao dịch hoàn tất thành công! Trạng thái: {confirm_data.get('status')} - Biên lai: {confirm_data.get('message')}")
+    print_pass(f"Giao dịch hoàn tất! Trạng thái: {confirm_data.get('status')} - Msg: {confirm_data.get('message')}")
 
-    # 6. Kiểm tra số dư người dùng
-    print_info("Bước 6: Kiểm tra số dư tài khoản sau giao dịch...")
+    # 6. Kiểm tra số dư
     r_me = await client.get(f"{GATEWAY_URL}/api/users/me", headers=headers)
     new_balance = Decimal(str(r_me.json()["balance"]))
     expected_new_balance = initial_balance - tuition_amount
     print_info(f"Số dư mới: {new_balance:,.0f} VNĐ (Kỳ vọng: {expected_new_balance:,.0f} VNĐ).")
 
     if new_balance == expected_new_balance:
-        print_pass("Số dư đã được cập nhật chính xác tuyệt đối!")
+        print_pass("Số dư đã được khấu trừ chính xác tuyệt đối!")
     else:
-        print_fail(f"Số dư chưa chính xác! Hiện tại: {new_balance}, kỳ vọng: {expected_new_balance}")
+        print_fail(f"Số dư không khớp: {new_balance} vs {expected_new_balance}")
         return False
 
     # 7. Kiểm tra lịch sử giao dịch
-    print_info("Bước 7: Kiểm tra lịch sử giao dịch...")
-    r_history = await client.get(f"{GATEWAY_URL}/api/payments/history", headers=headers)
-    history = r_history.json()
-    found_tx = any(item.get("id") == tx_id for item in history)
-    if found_tx:
-        print_pass(f"Giao dịch {tx_id[:8]}... đã được lưu trữ trong lịch sử giao dịch.")
+    r_hist = await client.get(f"{GATEWAY_URL}/api/payments/history", headers=headers)
+    history = r_hist.json()
+    found = any(t.get("id") == tx_id and t.get("status") == "SUCCESS" for t in history)
+    if found:
+        print_pass("Giao dịch SUCCESS đã được lưu trong lịch sử giao dịch người dùng!")
     else:
-        print_warn("Chưa tìm thấy TxID trong 50 giao dịch gần nhất.")
+        print_warn("Chưa tìm thấy TxID trong lịch sử giao dịch.")
 
-    print_pass("KỊCH BẢN E2E HOÀN TẤT TRỌN VẸN (100% SUCCESS)!")
+    print_pass("KỊCH BẢN END-TO-END HOÀN THÀNH XUẤT SẮC (100% SUCCESS)!")
     return True
 
 
@@ -377,21 +581,19 @@ async def test_scenario_3_end_to_end_payment(client: httpx.AsyncClient) -> bool:
 # KIỂM TRA SỨC KHỎE CÁC SERVICE TRƯỚC KHI CHẠY (SMOKE TEST)
 # =============================================================================
 async def check_all_services_health(client: httpx.AsyncClient) -> bool:
-    """Kiểm tra xem tất cả các container microservice có đang online không."""
-    services = {
+    """Kiểm tra xem Gateway, Frontend và Mailpit có sẵn sàng tiếp nhận request."""
+    endpoints = {
         "API Gateway (Port 8000)": f"{GATEWAY_URL}/health",
-        "User Service (Port 8001)": f"{USER_SERVICE_URL}/health",
-        "Tuition Service (Port 8002)": f"{TUITION_SERVICE_URL}/health",
-        "Payment Service (Port 8003)": f"{PAYMENT_SERVICE_URL}/health",
-        "Notification Service (Port 8004)": f"{NOTIFICATION_SERVICE_URL}/health"
+        "Frontend Web (Port 3000)": f"{FRONTEND_URL}/",
+        "Mailpit Test Mail Server (Port 8025)": f"{MAILPIT_URL}/api/v1/messages"
     }
 
-    print_header("Kiểm tra kết nối các Microservices (Health Check)")
+    print_header("Kiểm tra kết nối dịch vụ (Smoke Test)")
     all_ok = True
 
-    for name, url in services.items():
+    for name, url in endpoints.items():
         try:
-            resp = await client.get(url, timeout=3.0)
+            resp = await client.get(url, timeout=4.0)
             if resp.status_code in [200, 301, 302]:
                 print_pass(f"{name}: ONLINE (HTTP {resp.status_code})")
             else:
@@ -410,7 +612,7 @@ async def check_all_services_health(client: httpx.AsyncClient) -> bool:
 async def main():
     print(f"\n{Colors.BOLD}{Colors.YELLOW}")
     print("================================================================================")
-    print("      iBanking TDTU - BỘ KIỂM THỬ TỰ ĐỘNG CONCURRENCY & KIẾN TRÚC SOA           ")
+    print("   iBanking TDTU - AUTOMATED VERIFICATION SUITE (PHASE 2: CONCURRENCY & SOA)    ")
     print("        Môn: CS504070 - Kiến Trúc Hướng Dịch Vụ - ĐH Tôn Đức Thắng              ")
     print("================================================================================")
     print(f"{Colors.RESET}")
@@ -420,32 +622,33 @@ async def main():
         # 1. Kiểm tra sức khỏe hệ thống
         is_healthy = await check_all_services_health(client)
         if not is_healthy:
-            print(f"\n{Colors.BOLD}{Colors.RED}[CẢNH BÁO] Một số dịch vụ chưa khởi động.{Colors.RESET}")
+            print(f"\n{Colors.BOLD}{Colors.RED}[CẢNH BÁO] Hệ thống chưa sẵn sàng.{Colors.RESET}")
             print(f"Vui lòng đảm bảo bạn đã chạy: {Colors.BOLD}docker compose up -d --build{Colors.RESET}\n")
             sys.exit(1)
 
-        # 2. Reset dữ liệu ban đầu
-        await reset_demo_database(client)
-
         results = {}
 
-        # 3. Kịch bản 1: Double-Spending
-        results["Kịch bản 1 (Double-Spending)"] = await test_scenario_1_double_spending(client)
+        # 2. Test 1: X-Correlation-ID Tracing
+        results["1. Distributed Tracing (X-Correlation-ID)"] = await test_scenario_tracing(client)
 
-        # Reset lại để đảm bảo trạng thái sạch sẽ cho Kịch bản 2
-        await reset_demo_database(client)
+        # 3. Test 2: Idempotency-Key
+        reset_demo_database()
+        results["2. Payment Idempotency (Idempotency-Key)"] = await test_scenario_idempotency(client)
 
-        # 4. Kịch bản 2: Race Condition Học phí
-        results["Kịch bản 2 (Race Condition)"] = await test_scenario_2_race_condition(client)
+        # 4. Test 3: Double-Spending Prevention
+        reset_demo_database()
+        results["3. Concurrency Double-Spending (Pessimistic Lock)"] = await test_scenario_double_spending(client)
 
-        # Reset lại để Kịch bản 3 chạy mượt mà
-        await reset_demo_database(client)
+        # 5. Test 4: Tuition Race Condition & Saga Rollback
+        reset_demo_database()
+        results["4. Tuition Race Condition & Saga Compensation"] = await test_scenario_race_condition(client)
 
-        # 5. Kịch bản 3: End-to-End Payment Flow
-        results["Kịch bản 3 (End-to-End Flow)"] = await test_scenario_3_end_to_end_payment(client)
+        # 6. Test 5: Full E2E Flow
+        reset_demo_database()
+        results["5. End-to-End Payment Flow & Receipt"] = await test_scenario_end_to_end(client)
 
-        # TỔNG KẾT BẢNG ĐIỂM
-        print_header("TỔNG KẾT KẾT QUẢ KIỂM THỬ TỰ ĐỘNG")
+        # TỔNG KẾT
+        print_header("TỔNG KẾT KẾT QUẢ KIỂM THỬ TỰ ĐỘNG PHASE 2")
         all_passed = True
         for test_name, passed in results.items():
             if passed:
@@ -456,10 +659,13 @@ async def main():
 
         print(f"\n{Colors.CYAN}{'='*75}{Colors.RESET}")
         if all_passed:
-            print(f"{Colors.BOLD}{Colors.GREEN}KẾT QUẢ: TOÀN BỘ CÁC TIÊU CHÍ CONCURRENCY & SOA ĐỀU ĐẠT YÊU CẦU.{Colors.RESET}")
+            print(f"{Colors.BOLD}{Colors.GREEN}KẾT QUẢ: TOÀN BỘ 5/5 TIÊU CHÍ CONCURRENCY, IDEMPOTENCY & SAGA ĐỀU ĐẠT CHUẨN!{Colors.RESET}")
         else:
             print(f"{Colors.BOLD}{Colors.RED}[CẢNH BÁO] Một số bài kiểm thử chưa vượt qua. Vui lòng kiểm tra lại log bên trên.{Colors.RESET}")
         print(f"{Colors.CYAN}{'='*75}{Colors.RESET}\n")
+
+        if not all_passed:
+            sys.exit(1)
 
 if __name__ == "__main__":
     asyncio.run(main())

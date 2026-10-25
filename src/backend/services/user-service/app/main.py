@@ -17,6 +17,15 @@ from app.services import (
 )
 from app.security import create_access_token, decode_access_token
 
+import uuid
+import time
+import logging
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("user_service")
+
 app = FastAPI(
     title=settings.APP_NAME,
     version="1.0.0",
@@ -24,6 +33,21 @@ app = FastAPI(
     docs_url="/docs",
     openapi_url="/openapi.json"
 )
+
+class CorrelationIDMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        corr_id = request.headers.get("X-Correlation-ID") or request.headers.get("x-correlation-id") or str(uuid.uuid4())
+        request.state.correlation_id = corr_id
+        start_time = time.perf_counter()
+        
+        response = await call_next(request)
+        
+        process_time_ms = (time.perf_counter() - start_time) * 1000
+        response.headers["X-Correlation-ID"] = corr_id
+        logger.info(f"[cid:{corr_id}] {request.method} {request.url.path} -> {response.status_code} ({process_time_ms:.1f}ms)")
+        return response
+
+app.add_middleware(CorrelationIDMiddleware)
 
 
 

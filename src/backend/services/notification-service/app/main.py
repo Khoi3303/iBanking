@@ -8,6 +8,15 @@ from app.schemas import (
 )
 from app.email_sender import send_otp_email, send_receipt_email, send_refund_email
 
+import uuid
+import time
+import logging
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("notification_service")
+
 app = FastAPI(
     title=settings.APP_NAME,
     version="1.0.0",
@@ -15,6 +24,21 @@ app = FastAPI(
     docs_url="/docs",
     openapi_url="/openapi.json"
 )
+
+class CorrelationIDMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        corr_id = request.headers.get("X-Correlation-ID") or request.headers.get("x-correlation-id") or str(uuid.uuid4())
+        request.state.correlation_id = corr_id
+        start_time = time.perf_counter()
+        
+        response = await call_next(request)
+        
+        process_time_ms = (time.perf_counter() - start_time) * 1000
+        response.headers["X-Correlation-ID"] = corr_id
+        logger.info(f"[cid:{corr_id}] {request.method} {request.url.path} -> {response.status_code} ({process_time_ms:.1f}ms)")
+        return response
+
+app.add_middleware(CorrelationIDMiddleware)
 
 async def verify_internal_secret(
     x_internal_secret: str = Header(..., alias="X-Internal-Secret", description="Mã xác thực nội bộ giữa các microservices")

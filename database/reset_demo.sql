@@ -47,7 +47,7 @@ INSERT INTO account_transactions (user_id, amount, transaction_type, balance_aft
 -- 3. Xoa sach giao dich thanh toan cu va cap nhat cau truc
 USE ibanking_payment_db;
 ALTER TABLE otp_tokens MODIFY COLUMN otp_code VARCHAR(64) NOT NULL;
-ALTER TABLE transactions MODIFY COLUMN status ENUM('PENDING_OTP', 'SUCCESS', 'FAILED', 'EXPIRED', 'CANCELLED', 'COMPENSATION_PENDING') NOT NULL DEFAULT 'PENDING_OTP';
+ALTER TABLE transactions MODIFY COLUMN status ENUM('PENDING_OTP', 'PROCESSING', 'SUCCESS', 'FAILED', 'EXPIRED', 'CANCELLED', 'COMPENSATION_PENDING') NOT NULL DEFAULT 'PENDING_OTP';
 DELETE FROM otp_tokens;
 DELETE FROM transactions;
 

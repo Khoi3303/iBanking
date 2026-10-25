@@ -1,6 +1,10 @@
-from typing import List
-from fastapi import FastAPI, Depends, HTTPException, status, Header
+import uuid
+import time
+import logging
+from typing import List, Optional
+from fastapi import FastAPI, Depends, HTTPException, status, Header, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from jose import jwt, JWTError
@@ -17,6 +21,9 @@ from app.schemas import (
 from app.saga_orchestrator import initiate_payment_saga, confirm_payment_saga, cancel_payment_saga
 
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("payment_service")
+
 app = FastAPI(
     title=settings.APP_NAME,
     version="1.0.0",
@@ -25,6 +32,20 @@ app = FastAPI(
     openapi_url="/openapi.json"
 )
 
+class CorrelationIDMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        corr_id = request.headers.get("X-Correlation-ID") or request.headers.get("x-correlation-id") or str(uuid.uuid4())
+        request.state.correlation_id = corr_id
+        start_time = time.perf_counter()
+        
+        response = await call_next(request)
+        
+        process_time_ms = (time.perf_counter() - start_time) * 1000
+        response.headers["X-Correlation-ID"] = corr_id
+        logger.info(f"[cid:{corr_id}] {request.method} {request.url.path} -> {response.status_code} ({process_time_ms:.1f}ms)")
+        return response
+
+app.add_middleware(CorrelationIDMiddleware)
 
 
 security = HTTPBearer()
@@ -56,11 +77,14 @@ async def health_check():
 )
 async def initiate_payment(
     req: InitiatePaymentRequest,
+    request: Request,
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
     current_user: dict = Depends(get_current_user_payload),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Khởi tạo giao dịch đóng học phí (Mục 2 & Mục 3 của đề bài):
+    - Hỗ trợ Idempotency-Key chống trùng lặp request khi bấm nhiều lần.
     - Kiểm tra số dư >= học phí và khoản học phí chưa thanh toán.
     - Hủy các phiên PENDING_OTP cũ của user này nếu có.
     - Tạo giao dịch mới, sinh OTP 6 số ngẫu nhiên có TTL 300s (5 phút) trên Redis.
@@ -69,6 +93,7 @@ async def initiate_payment(
     user_id = int(current_user.get("sub"))
     username = current_user.get("username", "user")
     user_email = current_user.get("email", "")
+    corr_id = getattr(request.state, "correlation_id", None)
 
     result = await initiate_payment_saga(
         db=db,
@@ -77,7 +102,9 @@ async def initiate_payment(
         user_email=user_email,
         student_code=req.student_code.strip(),
         amount=req.amount,
-        invoice_id=req.invoice_id
+        invoice_id=req.invoice_id,
+        idempotency_key=idempotency_key,
+        correlation_id=corr_id
     )
     return result
 
@@ -89,25 +116,25 @@ async def initiate_payment(
 )
 async def confirm_payment(
     req: ConfirmOtpRequest,
+    request: Request,
     current_user: dict = Depends(get_current_user_payload),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Xác thực giao dịch bằng OTP và thực thi thanh toán (Mục 3 & Mục 4 của đề bài):
     - Kiểm tra OTP: Đúng mã, còn trong 5 phút, và tiêu thụ ngay lập tức (Single-use).
-    - Thực thi Saga:
-      + Trừ tiền tài khoản (với khóa dòng Pessimistic chống Double-spending).
-      + Gạch nợ học phí tại TDTU (với khóa dòng chống Race condition 2 người trả).
-      + Bồi hoàn hoàn tiền (Compensate) nếu bước gạch nợ học phí thất bại.
+    - Chuyển trạng thái sang PROCESSING và thực thi Saga.
     - Gửi email biên nhận thanh toán thành công và cập nhật lịch sử.
     """
     user_id = int(current_user.get("sub"))
+    corr_id = getattr(request.state, "correlation_id", None)
 
     result = await confirm_payment_saga(
         db=db,
         transaction_id=req.transaction_id,
         otp_code=req.otp_code.strip(),
-        user_id=user_id
+        user_id=user_id,
+        correlation_id=corr_id
     )
     return result
 

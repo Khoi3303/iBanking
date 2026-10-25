@@ -62,8 +62,16 @@ async def forward_request(
         except JWTError:
             pass
 
-    # 4. Gắn header xác thực nội bộ
+    # 4. Gắn header xác thực nội bộ và truy vết phân tán (Correlation-ID)
     forward_headers["X-Internal-Secret"] = settings.INTERNAL_API_KEY
+    corr_id = getattr(request.state, "correlation_id", None) or request.headers.get("x-correlation-id") or request.headers.get("X-Correlation-ID")
+    if corr_id:
+        forward_headers["X-Correlation-ID"] = corr_id
+
+    # Đảm bảo Idempotency-Key (nếu có) được chuyển tiếp sang Payment Service
+    idemp_key = request.headers.get("idempotency-key") or request.headers.get("Idempotency-Key")
+    if idemp_key:
+        forward_headers["Idempotency-Key"] = idemp_key
 
     if headers:
         forward_headers.update(headers)
@@ -77,11 +85,15 @@ async def forward_request(
             headers=forward_headers
         )
 
+        response_headers = {}
+        if corr_id:
+            response_headers["X-Correlation-ID"] = corr_id
+
         try:
             content = resp.json()
-            return JSONResponse(status_code=resp.status_code, content=content)
+            return JSONResponse(status_code=resp.status_code, content=content, headers=response_headers)
         except Exception:
-            return JSONResponse(status_code=resp.status_code, content={"detail": resp.text})
+            return JSONResponse(status_code=resp.status_code, content={"detail": resp.text}, headers=response_headers)
 
     except httpx.ConnectError:
         raise HTTPException(

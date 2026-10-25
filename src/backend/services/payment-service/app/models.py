@@ -17,7 +17,8 @@ class Transaction(Base):
     invoice_id = Column(Integer, nullable=True)
     semester = Column(String(50), nullable=False)
     amount = Column(Numeric(15, 2), nullable=False)
-    status = Column(String(20), nullable=False, default="PENDING_OTP", index=True) # PENDING_OTP, SUCCESS, FAILED, CANCELLED, EXPIRED
+    idempotency_key = Column(String(64), nullable=True, index=True)
+    status = Column(String(20), nullable=False, default="PENDING_OTP", index=True) # PENDING_OTP, PROCESSING, SUCCESS, FAILED, CANCELLED, EXPIRED
     failure_reason = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)

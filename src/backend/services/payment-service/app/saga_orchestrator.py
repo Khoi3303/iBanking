@@ -1,4 +1,5 @@
 import uuid
+import asyncio
 from decimal import Decimal
 from datetime import datetime, timedelta
 from typing import Optional
@@ -26,111 +27,163 @@ async def initiate_payment_saga(
     user_email: str,
     student_code: str,
     amount: Decimal,
-    invoice_id: Optional[int] = None
+    invoice_id: Optional[int] = None,
+    idempotency_key: Optional[str] = None,
+    correlation_id: Optional[str] = None
 ) -> dict:
     """
     Khởi tạo giao dịch đóng học phí (Bước 1):
-    1. Kiểm tra tính hợp lệ của khoản nợ học phí từ Tuition Service.
-    2. Kiểm tra số dư tài khoản từ User Service (phải >= amount).
-    3. Hủy bỏ các phiên giao dịch PENDING_OTP cũ của user này (giải quyết case bấm tắt đi bật lại).
-    4. Tạo Transaction mới ở trạng thái PENDING_OTP.
-    5. Sinh mã OTP ngẫu nhiên 6 số, TTL 300s, không trùng lặp (Redis + DB Audit).
-    6. Gửi email mã OTP qua Notification Service.
+    1. Kiểm tra tính hợp lệ của Idempotency-Key (nếu có, replay phiên đang PENDING_OTP/SUCCESS).
+    2. Kiểm tra tính hợp lệ của khoản nợ học phí từ Tuition Service.
+    3. Kiểm tra số dư tài khoản từ User Service (phải >= amount).
+    4. Hủy bỏ các phiên giao dịch PENDING_OTP cũ của user này (nếu khởi tạo phiên mới).
+    5. Tạo Transaction mới ở trạng thái PENDING_OTP.
+    6. Sinh mã OTP ngẫu nhiên 6 số, TTL 300s, không trùng lặp (Redis + DB Audit).
+    7. Gửi email mã OTP qua Notification Service.
     """
-    # 1. Tra cứu học phí phía TDTU
-    tuition_info = await TuitionServiceClient.get_student_tuition(student_code)
-    if not tuition_info.get("can_pay"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=tuition_info.get("message", "Khoản học phí này không đủ điều kiện thanh toán.")
+    # 0. Kiểm tra Idempotency-Key và chiếm khóa phân tán chống Race Condition
+    lock_idemp_key = f"lock:idemp:{user_id}:{idempotency_key}" if idempotency_key else None
+    lock_token = str(uuid.uuid4()) if idempotency_key else None
+
+    if lock_idemp_key:
+        for _ in range(25):
+            if await acquire_distributed_lock(lock_idemp_key, lock_token, ttl_seconds=10):
+                break
+            await asyncio.sleep(0.05)
+
+    try:
+        if idempotency_key:
+            stmt_idemp = select(Transaction).where(
+                and_(Transaction.user_id == user_id, Transaction.idempotency_key == idempotency_key)
+            )
+            res_idemp = await db.execute(stmt_idemp)
+            existing_tx = res_idemp.scalar_one_or_none()
+            if existing_tx:
+                if existing_tx.status == "PENDING_OTP":
+                    return {
+                        "transaction_id": existing_tx.id,
+                        "status": existing_tx.status,
+                        "student_code": existing_tx.student_code,
+                        "student_name": existing_tx.student_name,
+                        "semester": existing_tx.semester,
+                        "amount": existing_tx.amount,
+                        "expires_in_seconds": 300,
+                        "user_email": existing_tx.user_email,
+                        "message": f"Mã OTP đã được gửi đến email {existing_tx.user_email}. (Yêu cầu trùng lặp Idempotent)"
+                    }
+                elif existing_tx.status in ["PROCESSING", "SUCCESS"]:
+                    return {
+                        "transaction_id": existing_tx.id,
+                        "status": existing_tx.status,
+                        "student_code": existing_tx.student_code,
+                        "student_name": existing_tx.student_name,
+                        "semester": existing_tx.semester,
+                        "amount": existing_tx.amount,
+                        "expires_in_seconds": 0,
+                        "user_email": existing_tx.user_email,
+                        "message": "Giao dịch đã được ghi nhận và xử lý trước đó."
+                    }
+
+        # 1. Tra cứu học phí phía TDTU
+        tuition_info = await TuitionServiceClient.get_student_tuition(student_code, correlation_id=correlation_id)
+        if not tuition_info.get("can_pay"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=tuition_info.get("message", "Khoản học phí này không đủ điều kiện thanh toán.")
+            )
+
+        tuition_amount = Decimal(str(tuition_info.get("amount", 0)))
+        if tuition_amount != amount:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Số tiền yêu cầu thanh toán ({amount:,.0f} VNĐ) không khớp với học phí thực tế ({tuition_amount:,.0f} VNĐ)."
+            )
+
+        # 2. Kiểm tra số dư tài khoản người nộp tiền
+        user_info = await UserServiceClient.get_user(user_id, correlation_id=correlation_id)
+        user_balance = Decimal(str(user_info.get("balance", 0)))
+        if user_balance < amount:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Số dư khả dụng ({user_balance:,.0f} VNĐ) không đủ để thanh toán ({amount:,.0f} VNĐ)."
+            )
+
+        # 3. Dọn dẹp các phiên PENDING_OTP cũ của user (xử lý case người dùng tắt đi bật lại)
+        stmt_old_pending = select(Transaction).where(
+            and_(Transaction.user_id == user_id, Transaction.status == "PENDING_OTP")
+        )
+        old_res = await db.execute(stmt_old_pending)
+        old_txs = old_res.scalars().all()
+        for old_tx in old_txs:
+            old_tx.status = "CANCELLED"
+            old_tx.failure_reason = "Người dùng khởi tạo phiên giao dịch mới"
+            await invalidate_otp(old_tx.id)
+
+        # 4. Tạo giao dịch mới
+        tx_id = str(uuid.uuid4())
+        resolved_invoice_id = invoice_id or tuition_info.get("invoice_id")
+
+        new_tx = Transaction(
+            id=tx_id,
+            user_id=user_id,
+            username=username,
+            user_email=user_email,
+            student_code=student_code,
+            student_name=tuition_info.get("student_name", ""),
+            invoice_id=resolved_invoice_id,
+            semester=tuition_info.get("semester", ""),
+            amount=amount,
+            idempotency_key=idempotency_key,
+            status="PENDING_OTP"
+        )
+        db.add(new_tx)
+
+        # 5. Sinh mã OTP bằng CSPRNG (Redis lưu hash SHA-256 có TTL 300s)
+        otp_code = await generate_unique_otp(transaction_id=tx_id, length=6, expire_seconds=300)
+
+        # Lưu Audit log trong DB (Lưu hash SHA-256, không lưu plaintext)
+        otp_audit = OtpToken(
+            transaction_id=tx_id,
+            otp_code=hash_otp(otp_code),
+            expires_at=datetime.utcnow() + timedelta(seconds=300)
+        )
+        db.add(otp_audit)
+
+        await db.commit()
+        await db.refresh(new_tx)
+
+        # 6. Gửi email OTP ngầm qua Notification Service
+        await NotificationServiceClient.send_otp(
+            to_email=user_email,
+            recipient_name=user_info.get("full_name", username),
+            otp_code=otp_code,
+            student_name=new_tx.student_name,
+            amount=amount,
+            correlation_id=correlation_id
         )
 
-    tuition_amount = Decimal(str(tuition_info.get("amount", 0)))
-    if tuition_amount != amount:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Số tiền yêu cầu thanh toán ({amount:,.0f} VNĐ) không khớp với học phí thực tế ({tuition_amount:,.0f} VNĐ)."
-        )
-
-    # 2. Kiểm tra số dư tài khoản người nộp tiền
-    user_info = await UserServiceClient.get_user(user_id)
-    user_balance = Decimal(str(user_info.get("balance", 0)))
-    if user_balance < amount:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Số dư khả dụng ({user_balance:,.0f} VNĐ) không đủ để thanh toán ({amount:,.0f} VNĐ)."
-        )
-
-    # 3. Dọn dẹp các phiên PENDING_OTP cũ của user (xử lý case người dùng tắt đi bật lại)
-    stmt_old_pending = select(Transaction).where(
-        and_(Transaction.user_id == user_id, Transaction.status == "PENDING_OTP")
-    )
-    old_res = await db.execute(stmt_old_pending)
-    old_txs = old_res.scalars().all()
-    for old_tx in old_txs:
-        old_tx.status = "CANCELLED"
-        old_tx.failure_reason = "Người dùng khởi tạo phiên giao dịch mới"
-        await invalidate_otp(old_tx.id)
-
-    # 4. Tạo giao dịch mới
-    tx_id = str(uuid.uuid4())
-    resolved_invoice_id = invoice_id or tuition_info.get("invoice_id")
-
-    new_tx = Transaction(
-        id=tx_id,
-        user_id=user_id,
-        username=username,
-        user_email=user_email,
-        student_code=student_code,
-        student_name=tuition_info.get("student_name", ""),
-        invoice_id=resolved_invoice_id,
-        semester=tuition_info.get("semester", ""),
-        amount=amount,
-        status="PENDING_OTP"
-    )
-    db.add(new_tx)
-
-    # 5. Sinh mã OTP bằng CSPRNG (Redis lưu hash SHA-256 có TTL 300s)
-    otp_code = await generate_unique_otp(transaction_id=tx_id, length=6, expire_seconds=300)
-
-    # Lưu Audit log trong DB (Lưu hash SHA-256, không lưu plaintext)
-    otp_audit = OtpToken(
-        transaction_id=tx_id,
-        otp_code=hash_otp(otp_code),
-        expires_at=datetime.utcnow() + timedelta(seconds=300)
-    )
-    db.add(otp_audit)
-
-    await db.commit()
-    await db.refresh(new_tx)
-
-    # 6. Gửi email OTP ngầm qua Notification Service
-    await NotificationServiceClient.send_otp(
-        to_email=user_email,
-        recipient_name=user_info.get("full_name", username),
-        otp_code=otp_code,
-        student_name=new_tx.student_name,
-        amount=amount
-    )
-
-    return {
-        "transaction_id": new_tx.id,
-        "status": new_tx.status,
-        "student_code": new_tx.student_code,
-        "student_name": new_tx.student_name,
-        "semester": new_tx.semester,
-        "amount": new_tx.amount,
-        "expires_in_seconds": 300,
-        "user_email": user_email,
-        "message": f"Mã OTP đã được gửi đến email {user_email}. Mã có hiệu lực trong 5 phút."
-    }
+        return {
+            "transaction_id": new_tx.id,
+            "status": new_tx.status,
+            "student_code": new_tx.student_code,
+            "student_name": new_tx.student_name,
+            "semester": new_tx.semester,
+            "amount": new_tx.amount,
+            "expires_in_seconds": 300,
+            "user_email": user_email,
+            "message": f"Mã OTP đã được gửi đến email {user_email}. Mã có hiệu lực trong 5 phút."
+        }
+    finally:
+        if lock_idemp_key:
+            await release_distributed_lock(lock_idemp_key, lock_token)
 
 
 async def confirm_payment_saga(
     db: AsyncSession,
     transaction_id: str,
     otp_code: str,
-    user_id: int
+    user_id: int,
+    correlation_id: Optional[str] = None
 ) -> dict:
     """
     Xác thực OTP và thực thi SAGA ORCHESTRATION hoàn tất thanh toán:
@@ -203,12 +256,15 @@ async def confirm_payment_saga(
     # 4. Bước C: Đã chiếm Lock an toàn -> Tiêu thụ và XÓA VĨNH VIỄN mã OTP (Single-use)
     await consume_otp(transaction_id)
 
-    # Đánh dấu trong DB
+    # Đánh dấu trong DB và chuyển trạng thái sang PROCESSING
     stmt_otp_db = select(OtpToken).where(OtpToken.transaction_id == transaction_id)
     res_otp_db = await db.execute(stmt_otp_db)
     otp_db = res_otp_db.scalar_one_or_none()
     if otp_db:
         otp_db.is_used = True
+
+    tx.status = "PROCESSING"
+    await db.commit()
 
     deducted_successfully = False
 
@@ -219,7 +275,8 @@ async def confirm_payment_saga(
                 user_id=tx.user_id,
                 amount=tx.amount,
                 transaction_id=tx.id,
-                description=f"Thanh toán học phí MSSV {tx.student_code} ({tx.semester})"
+                description=f"Thanh toán học phí MSSV {tx.student_code} ({tx.semester})",
+                correlation_id=correlation_id
             )
             deducted_successfully = True
         except HTTPException as e:
@@ -235,7 +292,8 @@ async def confirm_payment_saga(
                 amount=tx.amount,
                 username=tx.username,
                 transaction_id=tx.id,
-                invoice_id=tx.invoice_id
+                invoice_id=tx.invoice_id,
+                correlation_id=correlation_id
             )
         except Exception as e:
             # SỰ CỐ BƯỚC 2: Bị 409 Conflict (người khác đã đóng) HOẶC Timeout / Lỗi mạng
@@ -246,7 +304,8 @@ async def confirm_payment_saga(
             await TuitionServiceClient.cancel_invoice(
                 student_code=tx.student_code,
                 transaction_id=tx.id,
-                invoice_id=tx.invoice_id
+                invoice_id=tx.invoice_id,
+                correlation_id=correlation_id
             )
 
             # 2. Hoàn lại tiền cho tài khoản người dùng
@@ -257,7 +316,8 @@ async def confirm_payment_saga(
                         user_id=tx.user_id,
                         amount=tx.amount,
                         transaction_id=tx.id,
-                        reason=f"Hoàn tiền do sự cố gạch nợ học phí ({err_detail})"
+                        reason=f"Hoàn tiền do sự cố gạch nợ học phí ({err_detail})",
+                        correlation_id=correlation_id
                     )
                     refund_success = refund_res.get("success", False) if isinstance(refund_res, dict) else True
                 except Exception as refund_err:
@@ -281,7 +341,8 @@ async def confirm_payment_saga(
                     transaction_id=tx.id,
                     student_code=tx.student_code,
                     amount=tx.amount,
-                    reason=tx.failure_reason
+                    reason=tx.failure_reason,
+                    correlation_id=correlation_id
                 )
 
             status_code = e.status_code if isinstance(e, HTTPException) else status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -304,7 +365,8 @@ async def confirm_payment_saga(
             student_code=tx.student_code,
             student_name=tx.student_name,
             amount=tx.amount,
-            completed_at=tx.completed_at.strftime("%d/%m/%Y %H:%M:%S")
+            completed_at=tx.completed_at.strftime("%d/%m/%Y %H:%M:%S"),
+            correlation_id=correlation_id
         )
 
         return {

@@ -43,6 +43,29 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+import uuid
+import time
+import logging
+from starlette.middleware.base import BaseHTTPMiddleware
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("api_gateway")
+
+class CorrelationIDMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        corr_id = request.headers.get("X-Correlation-ID") or str(uuid.uuid4())
+        request.state.correlation_id = corr_id
+        start_time = time.perf_counter()
+        
+        response = await call_next(request)
+        
+        process_time_ms = (time.perf_counter() - start_time) * 1000
+        response.headers["X-Correlation-ID"] = corr_id
+        logger.info(f"[cid:{corr_id}] {request.method} {request.url.path} -> {response.status_code} ({process_time_ms:.1f}ms)")
+        return response
+
+app.add_middleware(CorrelationIDMiddleware)
+
 # Cấu hình CORS chặt chẽ theo Origin cho Web Frontend
 allowed_origins = [origin.strip() for origin in settings.ALLOWED_ORIGINS.split(",") if origin.strip()]
 app.add_middleware(

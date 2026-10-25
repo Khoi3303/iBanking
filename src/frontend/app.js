@@ -356,9 +356,15 @@ async function initiatePayment() {
             invoice_id: state.currentTuition.invoice_id
         };
 
+        if (!state.currentIdempotencyKey) {
+            state.currentIdempotencyKey = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'idemp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+        }
+        const headers = getAuthHeaders();
+        headers["Idempotency-Key"] = state.currentIdempotencyKey;
+
         const resp = await fetch(`${API_BASE_URL}/payments/initiate`, {
             method: "POST",
-            headers: getAuthHeaders(),
+            headers: headers,
             body: JSON.stringify(payload)
         });
 
@@ -435,6 +441,7 @@ async function cancelOtpModal() {
     document.getElementById("otpCodeInput").value = "";
     document.getElementById("otpErrorAlert").classList.add("hidden");
     state.currentTransactionId = null;
+    state.currentIdempotencyKey = null;
     state.isSubmittingOtp = false;
 
     // 3. Thông báo cho người dùng
@@ -504,6 +511,7 @@ async function submitOtpConfirm() {
         // 1. Dừng đếm ngược và đóng modal OTP
         clearInterval(state.otpTimerInterval);
         state.otpTimerInterval = null;
+        state.currentIdempotencyKey = null;
         document.getElementById("otpModal").classList.add("hidden");
 
         // 2. TỰ ĐỘNG ĐỒNG BỘ: Cập nhật lại số dư trên Header và nạp lại lịch sử Tab 2

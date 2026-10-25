@@ -173,13 +173,15 @@ CREATE TABLE transactions (
     invoice_id INT NULL,
     semester VARCHAR(50) NOT NULL,
     amount DECIMAL(15, 2) NOT NULL,
-    status ENUM('PENDING_OTP', 'SUCCESS', 'FAILED', 'EXPIRED', 'CANCELLED', 'COMPENSATION_PENDING') NOT NULL DEFAULT 'PENDING_OTP',
+    idempotency_key VARCHAR(64) NULL,
+    status ENUM('PENDING_OTP', 'PROCESSING', 'SUCCESS', 'FAILED', 'EXPIRED', 'CANCELLED', 'COMPENSATION_PENDING') NOT NULL DEFAULT 'PENDING_OTP',
     failure_reason VARCHAR(255) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     completed_at DATETIME NULL,
     INDEX idx_user_id (user_id),
     INDEX idx_student_code (student_code),
-    INDEX idx_status (status)
+    INDEX idx_status (status),
+    INDEX idx_idempotency (user_id, idempotency_key)
 ) ENGINE=InnoDB;
 
 CREATE TABLE otp_tokens (

@@ -4,21 +4,25 @@ from typing import Optional, Dict, Any
 from fastapi import HTTPException, status
 from app.config import settings
 
-INTERNAL_HEADERS = {
-    "X-Internal-Secret": settings.INTERNAL_API_KEY,
-    "Content-Type": "application/json"
-}
+def _get_headers(correlation_id: Optional[str] = None) -> Dict[str, str]:
+    headers = {
+        "X-Internal-Secret": settings.INTERNAL_API_KEY,
+        "Content-Type": "application/json"
+    }
+    if correlation_id:
+        headers["X-Correlation-ID"] = correlation_id
+    return headers
 
 class UserServiceClient:
     """Client giao tiếp với User & Account Service."""
 
     @staticmethod
-    async def get_user(user_id: int) -> Dict[str, Any]:
+    async def get_user(user_id: int, correlation_id: Optional[str] = None) -> Dict[str, Any]:
         async with httpx.AsyncClient(timeout=10.0) as client:
             try:
                 resp = await client.get(
                     f"{settings.USER_SERVICE_URL}/internal/users/{user_id}",
-                    headers=INTERNAL_HEADERS
+                    headers=_get_headers(correlation_id)
                 )
                 if resp.status_code == 404:
                     raise HTTPException(status_code=404, detail="Người dùng không tồn tại.")
@@ -28,7 +32,7 @@ class UserServiceClient:
                 raise HTTPException(status_code=503, detail=f"Không thể kết nối đến User Service: {str(e)}")
 
     @staticmethod
-    async def deduct_balance(user_id: int, amount: Decimal, transaction_id: str, description: str) -> Dict[str, Any]:
+    async def deduct_balance(user_id: int, amount: Decimal, transaction_id: str, description: str, correlation_id: Optional[str] = None) -> Dict[str, Any]:
         payload = {
             "amount": float(amount),
             "transaction_id": transaction_id,
@@ -39,7 +43,7 @@ class UserServiceClient:
                 resp = await client.post(
                     f"{settings.USER_SERVICE_URL}/internal/users/{user_id}/deduct",
                     json=payload,
-                    headers=INTERNAL_HEADERS
+                    headers=_get_headers(correlation_id)
                 )
                 if resp.status_code != 200:
                     err_msg = resp.json().get("detail", "Lỗi trừ tiền tài khoản.")
@@ -49,7 +53,7 @@ class UserServiceClient:
                 raise HTTPException(status_code=503, detail=f"Không thể kết nối đến User Service: {str(e)}")
 
     @staticmethod
-    async def refund_balance(user_id: int, amount: Decimal, transaction_id: str, reason: str) -> Dict[str, Any]:
+    async def refund_balance(user_id: int, amount: Decimal, transaction_id: str, reason: str, correlation_id: Optional[str] = None) -> Dict[str, Any]:
         payload = {
             "amount": float(amount),
             "transaction_id": transaction_id,
@@ -60,7 +64,7 @@ class UserServiceClient:
                 resp = await client.post(
                     f"{settings.USER_SERVICE_URL}/internal/users/{user_id}/refund",
                     json=payload,
-                    headers=INTERNAL_HEADERS
+                    headers=_get_headers(correlation_id)
                 )
                 return resp.json()
             except Exception as e:
@@ -72,10 +76,13 @@ class TuitionServiceClient:
     """Client giao tiếp với TDTU Tuition Service."""
 
     @staticmethod
-    async def get_student_tuition(student_code: str) -> Dict[str, Any]:
+    async def get_student_tuition(student_code: str, correlation_id: Optional[str] = None) -> Dict[str, Any]:
         async with httpx.AsyncClient(timeout=10.0) as client:
             try:
-                resp = await client.get(f"{settings.TUITION_SERVICE_URL}/tuition/students/{student_code}")
+                resp = await client.get(
+                    f"{settings.TUITION_SERVICE_URL}/tuition/students/{student_code}",
+                    headers=_get_headers(correlation_id)
+                )
                 if resp.status_code == 404:
                     err_msg = resp.json().get("detail", "Không tìm thấy sinh viên.")
                     raise HTTPException(status_code=404, detail=err_msg)
@@ -90,7 +97,8 @@ class TuitionServiceClient:
         amount: Decimal,
         username: str,
         transaction_id: str,
-        invoice_id: Optional[int] = None
+        invoice_id: Optional[int] = None,
+        correlation_id: Optional[str] = None
     ) -> Dict[str, Any]:
         payload = {
             "invoice_id": invoice_id,
@@ -104,7 +112,7 @@ class TuitionServiceClient:
                 resp = await client.post(
                     f"{settings.TUITION_SERVICE_URL}/internal/tuition/pay",
                     json=payload,
-                    headers=INTERNAL_HEADERS
+                    headers=_get_headers(correlation_id)
                 )
                 if resp.status_code != 200:
                     err_msg = resp.json().get("detail", "Lỗi gạch nợ học phí.")
@@ -118,7 +126,7 @@ class TuitionServiceClient:
                 )
 
     @staticmethod
-    async def cancel_invoice(student_code: str, transaction_id: str, invoice_id: Optional[int] = None) -> Dict[str, Any]:
+    async def cancel_invoice(student_code: str, transaction_id: str, invoice_id: Optional[int] = None, correlation_id: Optional[str] = None) -> Dict[str, Any]:
         """Gọi API hoàn tác gạch nợ (Saga rollback an toàn khi bước 2 gặp sự cố timeout)."""
         payload = {
             "invoice_id": invoice_id,
@@ -130,7 +138,7 @@ class TuitionServiceClient:
                 resp = await client.post(
                     f"{settings.TUITION_SERVICE_URL}/internal/tuition/cancel",
                     json=payload,
-                    headers=INTERNAL_HEADERS
+                    headers=_get_headers(correlation_id)
                 )
                 return resp.json()
             except Exception as e:
@@ -142,7 +150,7 @@ class NotificationServiceClient:
     """Client gửi yêu cầu gửi Email sang Notification Service."""
 
     @staticmethod
-    async def send_otp(to_email: str, recipient_name: str, otp_code: str, student_name: str, amount: Decimal):
+    async def send_otp(to_email: str, recipient_name: str, otp_code: str, student_name: str, amount: Decimal, correlation_id: Optional[str] = None):
         payload = {
             "to_email": to_email,
             "recipient_name": recipient_name,
@@ -156,13 +164,13 @@ class NotificationServiceClient:
                 await client.post(
                     f"{settings.NOTIFICATION_SERVICE_URL}/notifications/send-otp",
                     json=payload,
-                    headers=INTERNAL_HEADERS
+                    headers=_get_headers(correlation_id)
                 )
             except Exception as e:
                 print(f"[Warning] Gửi email OTP thất bại qua Notification Service: {e}")
 
     @staticmethod
-    async def send_receipt(to_email: str, recipient_name: str, transaction_id: str, student_code: str, student_name: str, amount: Decimal, completed_at: str):
+    async def send_receipt(to_email: str, recipient_name: str, transaction_id: str, student_code: str, student_name: str, amount: Decimal, completed_at: str, correlation_id: Optional[str] = None):
         payload = {
             "to_email": to_email,
             "recipient_name": recipient_name,
@@ -177,13 +185,13 @@ class NotificationServiceClient:
                 await client.post(
                     f"{settings.NOTIFICATION_SERVICE_URL}/notifications/send-receipt",
                     json=payload,
-                    headers=INTERNAL_HEADERS
+                    headers=_get_headers(correlation_id)
                 )
             except Exception as e:
                 print(f"[Warning] Gửi email biên nhận thất bại: {e}")
 
     @staticmethod
-    async def send_failure_refund(to_email: str, recipient_name: str, transaction_id: str, student_code: str, amount: Decimal, reason: str):
+    async def send_failure_refund(to_email: str, recipient_name: str, transaction_id: str, student_code: str, amount: Decimal, reason: str, correlation_id: Optional[str] = None):
         """Gửi email thông báo giao dịch thất bại và đã hoàn tiền vào tài khoản."""
         payload = {
             "to_email": to_email,
@@ -198,7 +206,7 @@ class NotificationServiceClient:
                 await client.post(
                     f"{settings.NOTIFICATION_SERVICE_URL}/notifications/send-failure-refund",
                     json=payload,
-                    headers=INTERNAL_HEADERS
+                    headers=_get_headers(correlation_id)
                 )
             except Exception as e:
                 print(f"[Warning] Gửi email thông báo hoàn tiền thất bại: {e}")
