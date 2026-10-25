@@ -1,5 +1,4 @@
 from fastapi import FastAPI, BackgroundTasks, Depends, HTTPException, status, Header
-from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.schemas import (
     SendOtpEmailRequest,
@@ -15,14 +14,6 @@ app = FastAPI(
     description="Dịch vụ gửi thông báo và Email tự động cho phân hệ iBanking TDTU.",
     docs_url="/docs",
     openapi_url="/openapi.json"
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
 )
 
 async def verify_internal_secret(

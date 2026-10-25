@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     # Khóa bí mật giao tiếp nội bộ (Fail-fast: Bắt buộc cung cấp qua biến môi trường)
     INTERNAL_API_KEY: str
 
+    # CORS Configuration
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
+
     # Internal Microservices Endpoints
     USER_SERVICE_URL: str = "http://user-service:8001"
     TUITION_SERVICE_URL: str = "http://tuition-service:8002"

@@ -1,6 +1,5 @@
 from typing import List
 from fastapi import FastAPI, Depends, HTTPException, status, Header
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
@@ -26,13 +25,7 @@ app = FastAPI(
     openapi_url="/openapi.json"
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
 
 security = HTTPBearer()
 

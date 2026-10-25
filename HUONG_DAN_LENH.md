@@ -20,9 +20,9 @@ Trong thư mục gốc của dự án có sẵn các file script hỗ trợ thao
 ## 2. CÂU LỆNH RESET DỮ LIỆU VÀ TRẠNG THÁI
 
 ### Cách 1: Reset dữ liệu qua script SQL (Khuyên dùng)
-Chạy lệnh này trong Terminal PowerShell hoặc Command Prompt:
+Chạy file script `reset_demo.bat` hoặc dùng lệnh PowerShell:
 ```powershell
-docker compose exec -T mysql mysql --default-character-set=utf8mb4 -u root -prootpassword < database\reset_demo.sql
+.\reset_demo.bat
 ```
 *(Lệnh này đặt lại trạng thái các hóa đơn học phí về `UNPAID`, xóa lịch sử giao dịch cũ và đặt lại số dư 20.000.000 VNĐ cho các tài khoản kiểm thử).*
 
@@ -95,7 +95,7 @@ docker compose up -d --build notification-service
 ### Rebuild các service chính và nạp lại dữ liệu:
 ```powershell
 docker compose up -d --build user-service tuition-service payment-service notification-service api-gateway frontend
-type database\reset_demo.sql | docker compose exec -T mysql mysql -u root -prootpassword
+.\reset_demo.bat
 ```
 
 ---

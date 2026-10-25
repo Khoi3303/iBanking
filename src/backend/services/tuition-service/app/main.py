@@ -1,5 +1,4 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Header
-from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
@@ -20,14 +19,6 @@ app = FastAPI(
     description="Hệ thống mô phỏng Cổng Quản lý Đào tạo & Học phí Sinh viên Đại học Tôn Đức Thắng (TDTU).",
     docs_url="/docs",
     openapi_url="/openapi.json"
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
 )
 
 async def verify_internal_secret(

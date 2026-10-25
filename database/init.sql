@@ -11,19 +11,10 @@ CREATE DATABASE IF NOT EXISTS tdtu_tuition_db CHARACTER SET utf8mb4 COLLATE utf8
 CREATE DATABASE IF NOT EXISTS ibanking_payment_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
--- CẤP QUYỀN DATABASE SERVICE ACCOUNTS (SERVICE/DATA OWNERSHIP)
--- Mỗi service sở hữu tài khoản và database riêng biệt, không dùng root
+-- Ghi chú: Việc cấp quyền tài khoản Microservices (Service Accounts)
+-- được thực hiện động qua script /docker-entrypoint-initdb.d/02-create-users.sh
+-- nhằm bảo đảm mật khẩu luôn đồng bộ 100% với file .env (Least Privilege).
 -- --------------------------------------------------------
-CREATE USER IF NOT EXISTS 'ibanking_user_app'@'%' IDENTIFIED BY 'user_db_password_2026';
-GRANT ALL PRIVILEGES ON ibanking_user_db.* TO 'ibanking_user_app'@'%';
-
-CREATE USER IF NOT EXISTS 'ibanking_tuition_app'@'%' IDENTIFIED BY 'tuition_db_password_2026';
-GRANT ALL PRIVILEGES ON tdtu_tuition_db.* TO 'ibanking_tuition_app'@'%';
-
-CREATE USER IF NOT EXISTS 'ibanking_payment_app'@'%' IDENTIFIED BY 'payment_db_password_2026';
-GRANT ALL PRIVILEGES ON ibanking_payment_db.* TO 'ibanking_payment_app'@'%';
-
-FLUSH PRIVILEGES;
 
 -- --------------------------------------------------------
 -- 1. DATABASE CHO USER & ACCOUNT SERVICE

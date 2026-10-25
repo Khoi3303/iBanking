@@ -111,7 +111,7 @@ Chạy file script:
 ```powershell
 .\reset_demo.bat
 ```
-hoặc chạy bằng lệnh:
+hoặc chạy bằng lệnh (sử dụng mật khẩu quản trị trong file .env):
 ```bash
-docker compose exec -T mysql mysql --default-character-set=utf8mb4 -u root -prootpassword < database/reset_demo.sql
+docker compose exec -T -e MYSQL_PWD=$MYSQL_ROOT_PASSWORD mysql mysql --default-character-set=utf8mb4 -u root < database/reset_demo.sql
 ```

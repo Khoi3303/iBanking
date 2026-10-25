@@ -3,19 +3,7 @@
 -- ========================================================
 SET NAMES utf8mb4;
 
--- 1. Cap quyen cho cac Service Accounts neu chua co
-CREATE USER IF NOT EXISTS 'ibanking_user_app'@'%' IDENTIFIED BY 'user_db_password_2026';
-GRANT ALL PRIVILEGES ON ibanking_user_db.* TO 'ibanking_user_app'@'%';
-
-CREATE USER IF NOT EXISTS 'ibanking_tuition_app'@'%' IDENTIFIED BY 'tuition_db_password_2026';
-GRANT ALL PRIVILEGES ON tdtu_tuition_db.* TO 'ibanking_tuition_app'@'%';
-
-CREATE USER IF NOT EXISTS 'ibanking_payment_app'@'%' IDENTIFIED BY 'payment_db_password_2026';
-GRANT ALL PRIVILEGES ON ibanking_payment_db.* TO 'ibanking_payment_app'@'%';
-
-FLUSH PRIVILEGES;
-
--- 2. Dat lai trang thai hoa don ve UNPAID
+-- 1. Dat lai trang thai hoa don ve UNPAID
 USE tdtu_tuition_db;
 UPDATE tuition_invoices 
 SET status = 'UNPAID', paid_at = NULL, paid_by_user = NULL, transaction_ref = NULL 

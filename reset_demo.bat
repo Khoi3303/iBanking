@@ -13,7 +13,14 @@ if exist database\fix_utf8.sql del /f /q database\fix_utf8.sql >nul 2>&1
 if exist database\add_test_accounts.sql del /f /q database\add_test_accounts.sql >nul 2>&1
 if exist nap_tai_khoan_ngay.bat del /f /q nap_tai_khoan_ngay.bat >nul 2>&1
 
-docker compose exec -T mysql mysql --default-character-set=utf8mb4 -u root -prootpassword < database\reset_demo.sql
+set DB_ROOT_PASS=rootpassword
+if exist .env (
+    for /f "usebackq tokens=1,* delims==" %%A in (".env") do (
+        if "%%A"=="MYSQL_ROOT_PASSWORD" set "DB_ROOT_PASS=%%B"
+    )
+)
+
+docker compose exec -T -e MYSQL_PWD=%DB_ROOT_PASS% mysql mysql --default-character-set=utf8mb4 -u root < database\reset_demo.sql
 
 if %ERRORLEVEL% EQU 0 (
     echo.

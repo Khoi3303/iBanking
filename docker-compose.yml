@@ -8,14 +8,21 @@ services:
     restart: always
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      USER_DB_USER: ${USER_DB_USER}
+      USER_DB_PASSWORD: ${USER_DB_PASSWORD}
+      TUITION_DB_USER: ${TUITION_DB_USER}
+      TUITION_DB_PASSWORD: ${TUITION_DB_PASSWORD}
+      PAYMENT_DB_USER: ${PAYMENT_DB_USER}
+      PAYMENT_DB_PASSWORD: ${PAYMENT_DB_PASSWORD}
     expose:
       - "3306"
     volumes:
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./database/02-create-users.sh:/docker-entrypoint-initdb.d/02-create-users.sh:ro
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -53,8 +60,8 @@ services:
     environment:
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
-      MYSQL_USER: ${USER_DB_USER:-ibanking_user_app}
-      MYSQL_PASSWORD: ${USER_DB_PASSWORD:-user_db_password_2026}
+      MYSQL_USER: ${USER_DB_USER}
+      MYSQL_PASSWORD: ${USER_DB_PASSWORD}
       MYSQL_DATABASE: ibanking_user_db
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
@@ -80,8 +87,8 @@ services:
     environment:
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
-      MYSQL_USER: ${TUITION_DB_USER:-ibanking_tuition_app}
-      MYSQL_PASSWORD: ${TUITION_DB_PASSWORD:-tuition_db_password_2026}
+      MYSQL_USER: ${TUITION_DB_USER}
+      MYSQL_PASSWORD: ${TUITION_DB_PASSWORD}
       MYSQL_DATABASE: tdtu_tuition_db
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
     depends_on:
@@ -104,8 +111,8 @@ services:
     environment:
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
-      MYSQL_USER: ${PAYMENT_DB_USER:-ibanking_payment_app}
-      MYSQL_PASSWORD: ${PAYMENT_DB_PASSWORD:-payment_db_password_2026}
+      MYSQL_USER: ${PAYMENT_DB_USER}
+      MYSQL_PASSWORD: ${PAYMENT_DB_PASSWORD}
       MYSQL_DATABASE: ibanking_payment_db
       REDIS_URL: redis://redis:6379/0
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
@@ -124,7 +131,23 @@ services:
       - ibanking-net
 
   # ==========================================
-  # 6. NOTIFICATION SERVICE (Cổng nội bộ 8004)
+  # 6. MAILPIT (Zero-Config Dev SMTP & Web UI)
+  # ==========================================
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: ibanking-mailpit
+    restart: always
+    ports:
+      - "8025:8025"
+    expose:
+      - "1025"
+    environment:
+      MP_MAX_MESSAGES: 500
+    networks:
+      - ibanking-net
+
+  # ==========================================
+  # 7. NOTIFICATION SERVICE (Cổng nội bộ 8004)
   # ==========================================
   notification-service:
     build:
@@ -135,19 +158,21 @@ services:
     expose:
       - "8004"
     environment:
-      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
-      SMTP_PORT: ${SMTP_PORT:-587}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
       SMTP_USER: ${SMTP_USER}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL}
-      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-iBanking TDTU Support}
-      USE_TLS: ${USE_TLS:-true}
-      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME}
+      USE_TLS: ${USE_TLS}
+    depends_on:
+      - mailpit
     networks:
       - ibanking-net
 
   # ==========================================
-  # 7. API GATEWAY (Cổng công khai duy nhất :8000)
+  # 8. API GATEWAY (Cổng công khai duy nhất :8000)
   # ==========================================
   api-gateway:
     build:
@@ -162,6 +187,7 @@ services:
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
       USER_SERVICE_URL: http://user-service:8001
       TUITION_SERVICE_URL: http://tuition-service:8002
       PAYMENT_SERVICE_URL: http://payment-service:8003
@@ -174,7 +200,7 @@ services:
       - ibanking-net
 
   # ==========================================
-  # 8. FRONTEND WEB APPLICATION (Cổng giao diện :3000)
+  # 9. FRONTEND WEB APPLICATION (Cổng giao diện :3000)
   # ==========================================
   frontend:
     build:
