@@ -53,12 +53,12 @@ CREATE TABLE account_transactions (
 
 -- Dữ liệu mẫu tài khoản người dùng thử nghiệm
 INSERT INTO users (id, username, password_hash, full_name, phone_number, email, balance) VALUES
-(1, 'nguyenvana', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Nguyễn Văn A', '0901234567', 'nguyenvana@demo.ibanking.local', 20000000.00),
-(2, 'tranthib', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Trần Thị B', '0912345678', 'tranthib@demo.ibanking.local', 15000000.00),
-(3, 'lethanhc', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Lê Thành C', '0987654321', 'lethanhc@demo.ibanking.local', 5000000.00),
-(4, 'lekhoi3303', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Lê Khôi', '0903303303', 'lekhoi@demo.ibanking.local', 20000000.00),
-(5, 'tienmobile2006', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Nguyễn Thanh Tiền', '0907123456', 'tienmobile@demo.ibanking.local', 20000000.00),
-(6, 'mensieu123', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Nguyễn Minh Đăng', '0908123456', 'mensieu@demo.ibanking.local', 20000000.00);
+(1, 'nguyenvana', '$2b$12$eRypkj2XTlMZIZjOEFGrbufe748Gt5BZyLK5LCwtLN6KzpMChZFyO', 'Nguyễn Văn A', '0901234567', 'nguyenvana@ibanking.tdtu.edu.vn', 20000000.00),
+(2, 'tranthib', '$2b$12$eRypkj2XTlMZIZjOEFGrbufe748Gt5BZyLK5LCwtLN6KzpMChZFyO', 'Trần Thị B', '0912345678', 'tranthib@ibanking.tdtu.edu.vn', 15000000.00),
+(3, 'lethanhc', '$2b$12$eRypkj2XTlMZIZjOEFGrbufe748Gt5BZyLK5LCwtLN6KzpMChZFyO', 'Lê Thành C', '0987654321', 'lethanhc@ibanking.tdtu.edu.vn', 5000000.00),
+(4, 'lekhoi3303', '$2b$12$eRypkj2XTlMZIZjOEFGrbufe748Gt5BZyLK5LCwtLN6KzpMChZFyO', 'Lê Khôi', '0903303303', 'lekhoi@ibanking.tdtu.edu.vn', 20000000.00),
+(5, 'tienmobile2006', '$2b$12$eRypkj2XTlMZIZjOEFGrbufe748Gt5BZyLK5LCwtLN6KzpMChZFyO', 'Nguyễn Thanh Tiền', '0907123456', 'tienmobile@ibanking.tdtu.edu.vn', 20000000.00),
+(6, 'mensieu123', '$2b$12$eRypkj2XTlMZIZjOEFGrbufe748Gt5BZyLK5LCwtLN6KzpMChZFyO', 'Nguyễn Minh Đăng', '0908123456', 'mensieu@ibanking.tdtu.edu.vn', 20000000.00);
 
 -- Dữ liệu mẫu lịch sử số dư ban đầu
 INSERT INTO account_transactions (user_id, amount, transaction_type, balance_after, reference_id, description) VALUES

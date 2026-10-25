@@ -192,12 +192,12 @@ Mật khẩu chung cho tất cả tài khoản: `123456`
 
 | Tên đăng nhập | Mật khẩu | Họ và tên | Email nhận mã OTP | Số dư khả dụng |
 | :--- | :--- | :--- | :--- | :--- |
-| **`nguyenvana`** | `123456` | Nguyễn Văn A | `nguyenvana@demo.ibanking.local` | `20.000.000 VNĐ` |
-| **`lekhoi3303`** | `123456` | Lê Khôi | `lekhoi3303@demo.ibanking.local` | `20.000.000 VNĐ` |
-| **`tienmobile2006`** | `123456` | Nguyễn Thanh Tiền | `tienmobile@demo.ibanking.local` | `20.000.000 VNĐ` |
-| **`mensieu123`** | `123456` | Nguyễn Minh Đăng | `mensieu@demo.ibanking.local` | `20.000.000 VNĐ` |
-| **`tranthib`** | `123456` | Trần Thị B | `tranthib@demo.ibanking.local` | `15.000.000 VNĐ` |
-| **`lethanhc`** | `123456` | Lê Thành C | `lethanhc@demo.ibanking.local` | `5.000.000 VNĐ` |
+| **`nguyenvana`** | `123456` | Nguyễn Văn A | `nguyenvana@ibanking.tdtu.edu.vn` | `20.000.000 VNĐ` |
+| **`lekhoi3303`** | `123456` | Lê Khôi | `lekhoi3303@ibanking.tdtu.edu.vn` | `20.000.000 VNĐ` |
+| **`tienmobile2006`** | `123456` | Nguyễn Thanh Tiền | `tienmobile@ibanking.tdtu.edu.vn` | `20.000.000 VNĐ` |
+| **`mensieu123`** | `123456` | Nguyễn Minh Đăng | `mensieu@ibanking.tdtu.edu.vn` | `20.000.000 VNĐ` |
+| **`tranthib`** | `123456` | Trần Thị B | `tranthib@ibanking.tdtu.edu.vn` | `15.000.000 VNĐ` |
+| **`lethanhc`** | `123456` | Lê Thành C | `lethanhc@ibanking.tdtu.edu.vn` | `5.000.000 VNĐ` |
 
 ---
 

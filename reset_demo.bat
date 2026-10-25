@@ -1,4 +1,5 @@
 @echo off
+set "PATH=%SystemRoot%\System32;%SystemRoot%;%PATH%"
 chcp 65001 >nul
 echo ========================================================
 echo   KHOI PHUC TRANG THAI DEMO (RESET THANH TOAN 524H0001)
@@ -15,9 +16,7 @@ if exist nap_tai_khoan_ngay.bat del /f /q nap_tai_khoan_ngay.bat >nul 2>&1
 
 set DB_ROOT_PASS=rootpassword
 if exist .env (
-    for /f "usebackq tokens=1,* delims==" %%A in (".env") do (
-        if "%%A"=="MYSQL_ROOT_PASSWORD" set "DB_ROOT_PASS=%%B"
-    )
+    for /f "tokens=2 delims==" %%A in ('findstr /b "MYSQL_ROOT_PASSWORD=" .env') do set "DB_ROOT_PASS=%%A"
 )
 
 docker compose exec -T -e MYSQL_PWD=%DB_ROOT_PASS% mysql mysql --default-character-set=utf8mb4 -u root < database\reset_demo.sql
@@ -28,7 +27,7 @@ if %ERRORLEVEL% EQU 0 (
     echo   DA KHOI PHUC THANH CONG!
     echo   - Trang thai hoa don: Da chuyen ve UNPAID
     echo   - So du tai khoan: 20.000.000 VND
-    echo   - Ban co the tai lai trang (F5) va thuc hien thanh toan lai.
+    echo   - Ban co the tai lai trang [F5] va thuc hien thanh toan lai.
     echo ========================================================
 ) else (
     echo.

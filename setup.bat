@@ -13,8 +13,15 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0setup.ps1"
-
-echo.
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo ======================================================================
+    echo [ERROR] Qua trinh khoi tao hoac xac thuc cau hinh that bai (Exit code: %ERRORLEVEL%).
+    echo Vui long kiem tra thong bao loi o tren va sua file .env truoc khi khoi chay.
+    echo ======================================================================
+    pause
+    exit /b %ERRORLEVEL%
+)
 set /p START_NOW="Ban co muon khoi chay Docker Compose ngay bay gio khong? (Y/N, default Y): "
 if /i "%START_NOW%"=="N" (
     echo Ban co the chay he thong bat ky luc nao bang lenh: docker compose up -d --build

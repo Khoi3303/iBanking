@@ -1,4 +1,5 @@
 @echo off
+set "PATH=%SystemRoot%\System32;%SystemRoot%;%PATH%"
 chcp 65001 >nul
 :MENU
 cls
@@ -48,9 +49,7 @@ if exist database\fix_utf8.sql del /f /q database\fix_utf8.sql >nul 2>&1
 if exist database\add_test_accounts.sql del /f /q database\add_test_accounts.sql >nul 2>&1
 set DB_ROOT_PASS=rootpassword
 if exist .env (
-    for /f "usebackq tokens=1,* delims==" %%A in (".env") do (
-        if "%%A"=="MYSQL_ROOT_PASSWORD" set "DB_ROOT_PASS=%%B"
-    )
+    for /f "tokens=2 delims==" %%A in ('findstr /b "MYSQL_ROOT_PASSWORD=" .env') do set "DB_ROOT_PASS=%%A"
 )
 docker compose exec -T -e MYSQL_PWD=%DB_ROOT_PASS% mysql mysql --default-character-set=utf8mb4 -u root < database\reset_demo.sql >nul 2>&1
 docker compose up -d --build --remove-orphans frontend api-gateway user-service tuition-service payment-service notification-service
@@ -63,9 +62,7 @@ echo.
 echo Dang khoi phuc hoa don hoc phi ve UNPAID va so du ve 20.000.000 VND...
 set DB_ROOT_PASS=rootpassword
 if exist .env (
-    for /f "usebackq tokens=1,* delims==" %%A in (".env") do (
-        if "%%A"=="MYSQL_ROOT_PASSWORD" set "DB_ROOT_PASS=%%B"
-    )
+    for /f "tokens=2 delims==" %%A in ('findstr /b "MYSQL_ROOT_PASSWORD=" .env') do set "DB_ROOT_PASS=%%A"
 )
 docker compose exec -T -e MYSQL_PWD=%DB_ROOT_PASS% mysql mysql --default-character-set=utf8mb4 -u root < database\reset_demo.sql
 echo Hoan tat! Ban co the thanh toan lai ngay.
