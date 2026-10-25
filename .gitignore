@@ -6,6 +6,7 @@
 # 1. Environment Variables & Secrets (Bảo mật tài khoản, mật khẩu, API keys)
 # --------------------------------------------------------
 .env
+.env*
 .env.local
 .env.*.local
 *.env
