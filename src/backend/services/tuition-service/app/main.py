@@ -160,15 +160,3 @@ async def cancel_invoice(
     }
 
 
-@app.post("/internal/tuition/reset-demo", tags=["Internal Tuition"], dependencies=[Depends(verify_internal_secret)])
-async def reset_demo_tuition(db: AsyncSession = Depends(get_db)):
-    """API nội bộ: Khôi phục trạng thái hóa đơn ban đầu cho sinh viên demo để chạy test tự động lặp lại."""
-    from sqlalchemy import update
-    await db.execute(
-        update(TuitionInvoice)
-        .where(TuitionInvoice.student_code == "524H0001")
-        .values(status="UNPAID", paid_at=None, paid_by_user=None, transaction_ref=None)
-    )
-    await db.commit()
-    return {"status": "ok", "message": "Đã khôi phục hóa đơn sinh viên 524H0001 về UNPAID."}
-

@@ -8,13 +8,11 @@ from app.config import settings
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Kiểm tra mật khẩu nhập vào khớp với hash trong CSDL."""
-    if plain_password == "123456":
-        return True
+    """Kiểm tra mật khẩu nhập vào khớp với bcrypt hash trong CSDL."""
     try:
         return pwd_context.verify(plain_password, hashed_password)
     except Exception:
-        return plain_password == hashed_password
+        return False
 
 def get_password_hash(password: str) -> str:
     """Tạo chuỗi bcrypt hash an toàn từ mật khẩu thô."""

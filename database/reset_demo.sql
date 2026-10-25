@@ -13,7 +13,7 @@ WHERE student_code IN (
     '524H0016', '524H0017', '524H0018', '524H0019', '524H0020'
 );
 
--- 2. Dat lai so du nguoi dung
+-- 2. Dat lai so du nguoi dung va dong bo so cai (Ledger Consistency)
 USE ibanking_user_db;
 UPDATE users SET balance = 20000000.00 WHERE id = 1 OR username = 'nguyenvana';
 UPDATE users SET balance = 15000000.00 WHERE id = 2 OR username = 'tranthib';
@@ -34,10 +34,22 @@ INSERT INTO users (username, password_hash, full_name, phone_number, email, bala
 VALUES ('mensieu123', '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', 'Nguyễn Minh Đăng', '0908123456', 'Mensieu123@gmail.com', 20000000.00)
 ON DUPLICATE KEY UPDATE full_name = 'Nguyễn Minh Đăng', balance = 20000000.00, password_hash = '$2b$12$KkQeGj3aX855lJ.w3N3Wv.Rj7X0q4i.24b0W09G6L1w2X8oVb2Uwe', email = 'Mensieu123@gmail.com';
 
--- 3. Xoa du lieu giao dich cu
+-- Reset so cai bien dong so du (Account Ledger) khop chinh xac voi so du thuc te
+DELETE FROM account_transactions;
+INSERT INTO account_transactions (user_id, amount, transaction_type, balance_after, reference_id, description) VALUES
+(1, 20000000.00, 'CREDIT', 20000000.00, 'INIT_BALANCE_001', 'Số dư khởi tạo ban đầu'),
+(2, 15000000.00, 'CREDIT', 15000000.00, 'INIT_BALANCE_002', 'Số dư khởi tạo ban đầu'),
+(3, 5000000.00, 'CREDIT', 5000000.00, 'INIT_BALANCE_003', 'Số dư khởi tạo ban đầu'),
+(4, 20000000.00, 'CREDIT', 20000000.00, 'INIT_BALANCE_004', 'Số dư khởi tạo ban đầu'),
+(5, 20000000.00, 'CREDIT', 20000000.00, 'INIT_BALANCE_005', 'Số dư khởi tạo ban đầu'),
+(6, 20000000.00, 'CREDIT', 20000000.00, 'INIT_BALANCE_006', 'Số dư khởi tạo ban đầu');
+
+-- 3. Xoa sach giao dich thanh toan cu va cap nhat cau truc
 USE ibanking_payment_db;
-DELETE FROM otp_tokens WHERE transaction_id IN (SELECT id FROM transactions WHERE student_code = '524H0001');
-DELETE FROM transactions WHERE student_code = '524H0001';
+ALTER TABLE otp_tokens MODIFY COLUMN otp_code VARCHAR(64) NOT NULL;
+ALTER TABLE transactions MODIFY COLUMN status ENUM('PENDING_OTP', 'SUCCESS', 'FAILED', 'EXPIRED', 'CANCELLED', 'COMPENSATION_PENDING') NOT NULL DEFAULT 'PENDING_OTP';
+DELETE FROM otp_tokens;
+DELETE FROM transactions;
 
 -- 4. Dong bo thong tin sinh vien day du tieng Viet (khong che thong tin)
 USE tdtu_tuition_db;

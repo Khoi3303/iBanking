@@ -79,19 +79,4 @@ async def root():
         "docs_url": "/docs"
     }
 
-@app.post("/api/test/reset-demo", tags=["Testing Helper"])
-async def reset_demo_data(request: Request):
-    """Tiện ích kiểm thử: Reset số dư và trạng thái hóa đơn về ban đầu phục vụ test tự động lặp lại."""
-    client: httpx.AsyncClient = request.app.state.http_client
-    headers = {"X-Internal-Secret": settings.INTERNAL_API_KEY}
-    
-    r_user = await client.post(f"{settings.USER_SERVICE_URL}/internal/users/reset-demo", headers=headers)
-    r_tuition = await client.post(f"{settings.TUITION_SERVICE_URL}/internal/tuition/reset-demo", headers=headers)
-    
-    return {
-        "status": "ok",
-        "user_service": r_user.json() if r_user.is_success else r_user.text,
-        "tuition_service": r_tuition.json() if r_tuition.is_success else r_tuition.text,
-        "message": "Đã khôi phục toàn bộ trạng thái dữ liệu mẫu phục vụ kiểm thử."
-    }
 

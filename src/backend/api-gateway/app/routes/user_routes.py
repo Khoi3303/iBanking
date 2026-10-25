@@ -35,16 +35,3 @@ async def get_my_transactions(request: Request, limit: int = 50):
     target_url = f"{settings.USER_SERVICE_URL}/users/me/transactions"
     return await forward_request(target_url, request)
 
-
-@router.post(
-    "/me/deposit",
-    status_code=status.HTTP_200_OK,
-    summary="Nạp tiền vào tài khoản iBanking",
-    dependencies=[Depends(security)]
-)
-async def deposit_money(request: Request):
-    """
-    Chuyển tiếp yêu cầu nạp tiền vào tài khoản iBanking sang User Service.
-    """
-    target_url = f"{settings.USER_SERVICE_URL}/users/me/deposit"
-    return await forward_request(target_url, request)

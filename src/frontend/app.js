@@ -61,12 +61,6 @@ function initEventListeners() {
         loginForm.addEventListener("submit", handleLoginSubmit);
     }
 
-    // Form Register
-    const registerForm = document.getElementById("registerForm");
-    if (registerForm) {
-        registerForm.addEventListener("submit", handleRegisterSubmit);
-    }
-
     // Nút đăng xuất
     const btnLogout = document.getElementById("btnLogout");
     if (btnLogout) {
@@ -164,76 +158,6 @@ async function handleLoginSubmit(e) {
     } finally {
         btnLogin.disabled = false;
         btnLogin.querySelector(".spinner").classList.add("hidden");
-    }
-}
-
-function switchAuthTab(tab) {
-    const tabLogin = document.getElementById("tabLogin");
-    const tabRegister = document.getElementById("tabRegister");
-    const loginSection = document.getElementById("loginSection");
-    const registerSection = document.getElementById("registerSection");
-
-    if (tab === "register") {
-        tabLogin.classList.remove("active");
-        tabRegister.classList.add("active");
-        loginSection.classList.add("hidden");
-        registerSection.classList.remove("hidden");
-    } else {
-        tabRegister.classList.remove("active");
-        tabLogin.classList.add("active");
-        registerSection.classList.add("hidden");
-        loginSection.classList.remove("hidden");
-    }
-}
-
-async function handleRegisterSubmit(e) {
-    e.preventDefault();
-    const full_name = document.getElementById("regFullName").value.trim();
-    const email = document.getElementById("regEmail").value.trim();
-    const username = document.getElementById("regUsername").value.trim();
-    const phone_number = document.getElementById("regPhone").value.trim();
-    const password = document.getElementById("regPassword").value;
-    const balance = 20000000; // Tặng sẵn 20.000.000 VNĐ để người dùng test ngay tính năng thanh toán học phí
-
-    const btnRegister = document.getElementById("btnRegister");
-    btnRegister.disabled = true;
-    btnRegister.querySelector(".spinner").classList.remove("hidden");
-
-    try {
-        const resp = await fetch(`${API_BASE_URL}/auth/register`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                username,
-                password,
-                full_name,
-                phone_number,
-                email,
-                balance
-            })
-        });
-
-        const data = await resp.json();
-
-        if (!resp.ok) {
-            throw new Error(data.detail || "Đăng ký không thành công.");
-        }
-
-        state.token = data.access_token;
-        state.currentUser = data.user;
-        localStorage.setItem("ibanking_token", state.token);
-
-        renderUserInfo(state.currentUser);
-        showMainScreen();
-        showToast(`Đăng ký thành công! Số dư khởi tạo: 20.000.000 VNĐ. Chào mừng ${data.user.full_name}`, "success");
-
-        // Tự động tìm kiếm MSSV mẫu đầu tiên
-        searchStudentTuition();
-    } catch (err) {
-        showToast(err.message, "error");
-    } finally {
-        btnRegister.disabled = false;
-        btnRegister.querySelector(".spinner").classList.add("hidden");
     }
 }
 
@@ -402,11 +326,7 @@ function validatePaymentConditions() {
         alertInsufficient.classList.add("hidden");
     }
 
-    // Nếu đã đủ số dư để đóng học phí còn nợ, tự động tích chọn điều khoản nếu chưa tích
-    if (isUnpaid && isBalanceEnough && termsCheckbox && !termsCheckbox.checked) {
-        termsCheckbox.checked = true;
-    }
-
+    // Người dùng phải chủ động tích chọn đồng ý điều khoản trước khi thanh toán
     const termsAgreed = termsCheckbox ? termsCheckbox.checked : false;
 
     if (isUnpaid && isBalanceEnough && termsAgreed) {
@@ -707,109 +627,4 @@ function closeTermsModal() {
     document.getElementById("termsModal").classList.add("hidden");
 }
 
-// ========================================================
-// 5. NẠP TIỀN VÀO TÀI KHOẢN (DEPOSIT)
-// ========================================================
-function openDepositModal() {
-    if (!state.currentUser) return;
-    document.getElementById("depositCurrentBalance").textContent = formatVND(state.currentUser.balance);
-
-    // Tính toán số tiền gợi ý: Nếu đang xem học phí chưa đủ tiền, tự động điền phần còn thiếu
-    let suggestedAmount = 15000000;
-    if (state.currentTuition && state.currentTuition.status === "UNPAID") {
-        const needed = Number(state.currentTuition.amount) - Number(state.currentUser.balance);
-        if (needed > 0) {
-            suggestedAmount = needed;
-        }
-    }
-    document.getElementById("depositAmountInput").value = suggestedAmount;
-    document.getElementById("depositErrorAlert").classList.add("hidden");
-    document.getElementById("depositModal").classList.remove("hidden");
-    setTimeout(() => {
-        const inp = document.getElementById("depositAmountInput");
-        if (inp) {
-            inp.focus();
-            inp.select();
-        }
-    }, 100);
-}
-
-function closeDepositModal() {
-    document.getElementById("depositModal").classList.add("hidden");
-}
-
-function setDepositAmount(amount) {
-    document.getElementById("depositAmountInput").value = amount;
-}
-
-async function handleDepositSubmit(e) {
-    e.preventDefault();
-    const amountVal = parseFloat(document.getElementById("depositAmountInput").value);
-    const desc = document.getElementById("depositDescInput").value.trim() || "Nạp tiền vào tài khoản iBanking";
-    const errorAlert = document.getElementById("depositErrorAlert");
-    const btnSubmit = document.getElementById("btnSubmitDeposit");
-    const MAX_DEPOSIT = 500000000;
-
-    if (isNaN(amountVal) || amountVal <= 0) {
-        errorAlert.textContent = "Vui lòng nhập số tiền nạp hợp lệ (> 0 VNĐ).";
-        errorAlert.classList.remove("hidden");
-        return;
-    }
-
-    if (amountVal > MAX_DEPOSIT) {
-        errorAlert.textContent = `Số tiền nạp tối đa là ${formatVND(MAX_DEPOSIT)} cho mỗi giao dịch.`;
-        errorAlert.classList.remove("hidden");
-        return;
-    }
-
-    btnSubmit.disabled = true;
-    btnSubmit.querySelector(".spinner").classList.remove("hidden");
-    errorAlert.classList.add("hidden");
-
-    try {
-        const resp = await fetch(`${API_BASE_URL}/users/me/deposit`, {
-            method: "POST",
-            headers: getAuthHeaders(),
-            body: JSON.stringify({
-                amount: amountVal,
-                description: desc
-            })
-        });
-
-        const data = await resp.json();
-
-        if (!resp.ok) {
-            throw new Error(data.detail || "Nạp tiền không thành công.");
-        }
-
-        // Cập nhật state số dư
-        state.currentUser.balance = data.new_balance;
-        renderUserInfo(state.currentUser);
-
-        // ĐỒNG BỘ TRẠNG THÁI THANH TOÁN:
-        // Nếu màn hình tra cứu đang mở sẵn một sinh viên có nợ, kích hoạt lại điều kiện
-        // để nút Xác nhận giao dịch tự động sáng lên ngay mà không bắt gõ lại MSSV!
-        if (state.currentTuition && state.currentTuition.status === "UNPAID") {
-            const termsCheckbox = document.getElementById("agreeTermsCheckbox");
-            if (termsCheckbox) {
-                termsCheckbox.checked = true;
-            }
-            validatePaymentConditions();
-        }
-
-        closeDepositModal();
-        showToast(`Nạp thành công ${formatVND(amountVal)}. Số dư mới: ${formatVND(data.new_balance)}.`, "success");
-
-        // Nếu đang ở tab lịch sử, tải lại lịch sử
-        if (!document.getElementById("historyTab").classList.contains("hidden")) {
-            loadTransactionHistory();
-        }
-    } catch (err) {
-        errorAlert.textContent = err.message;
-        errorAlert.classList.remove("hidden");
-    } finally {
-        btnSubmit.disabled = false;
-        btnSubmit.querySelector(".spinner").classList.add("hidden");
-    }
-}
 

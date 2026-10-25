@@ -189,23 +189,3 @@ async def get_payment_history(
     return list(res.scalars().all())
 
 
-@app.get(
-    "/internal/otp/{transaction_id}",
-    tags=["Internal Testing"]
-)
-async def get_internal_test_otp(
-    transaction_id: str,
-    x_internal_secret: str = Header(..., alias="X-Internal-Secret"),
-    db: AsyncSession = Depends(get_db)
-):
-    """API nội bộ hỗ trợ kiểm thử tự động (test automation) lấy mã OTP."""
-    if x_internal_secret != settings.INTERNAL_API_KEY:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-    from app.models import OtpToken
-    stmt = select(OtpToken).where(OtpToken.transaction_id == transaction_id, OtpToken.is_used == False)
-    res = await db.execute(stmt)
-    otp_record = res.scalar_one_or_none()
-    if not otp_record:
-        raise HTTPException(status_code=404, detail="OTP not found")
-    return {"otp_code": otp_record.otp_code}
-

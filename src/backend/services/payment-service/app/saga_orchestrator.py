@@ -12,6 +12,7 @@ from app.redis_client import (
     verify_otp,
     consume_otp,
     invalidate_otp,
+    hash_otp,
     acquire_distributed_lock,
     release_distributed_lock
 )
@@ -89,13 +90,13 @@ async def initiate_payment_saga(
     )
     db.add(new_tx)
 
-    # 5. Sinh mã OTP trong Redis (TTL 300s, không trùng lặp)
+    # 5. Sinh mã OTP bằng CSPRNG (Redis lưu hash SHA-256 có TTL 300s)
     otp_code = await generate_unique_otp(transaction_id=tx_id, length=6, expire_seconds=300)
 
-    # Lưu Audit log trong DB
+    # Lưu Audit log trong DB (Lưu hash SHA-256, không lưu plaintext)
     otp_audit = OtpToken(
         transaction_id=tx_id,
-        otp_code=otp_code,
+        otp_code=hash_otp(otp_code),
         expires_at=datetime.utcnow() + timedelta(seconds=300)
     )
     db.add(otp_audit)
@@ -162,12 +163,21 @@ async def confirm_payment_saga(
             detail=f"Giao dịch đã ở trạng thái '{tx.status}', không thể xác thực lại."
         )
 
-    # 2. Bước A: Kiểm tra OTP hợp lệ (CHƯA XÓA để người dùng có thể retry nếu lock bận)
-    is_otp_valid = await verify_otp(transaction_id=transaction_id, input_otp=otp_code)
+    # 2. Bước A: Kiểm tra OTP hợp lệ (CSPRNG + Hashed + Giới hạn 5 lần thử chống brute-force)
+    is_otp_valid, otp_msg, is_expired_or_locked = await verify_otp(transaction_id=transaction_id, input_otp=otp_code)
     if not is_otp_valid:
+        if is_expired_or_locked:
+            if "hết hạn" in otp_msg:
+                tx.status = "EXPIRED"
+                tx.failure_reason = "Mã OTP đã hết hạn (quá 5 phút)"
+            else:
+                tx.status = "FAILED"
+                tx.failure_reason = "Nhập sai mã OTP quá 5 lần. Giao dịch bị hủy."
+            await db.commit()
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Mã OTP không chính xác hoặc đã hết hạn (quá 5 phút). Vui lòng kiểm tra lại email."
+            detail=otp_msg
         )
 
     # 3. Bước B: Chiếm Distributed Lock (Redis Lock có TTL 10s chống Deadlock)
@@ -240,28 +250,39 @@ async def confirm_payment_saga(
             )
 
             # 2. Hoàn lại tiền cho tài khoản người dùng
+            refund_success = False
             if deducted_successfully:
-                await UserServiceClient.refund_balance(
-                    user_id=tx.user_id,
-                    amount=tx.amount,
-                    transaction_id=tx.id,
-                    reason=f"Hoàn tiền do sự cố gạch nợ học phí ({err_detail})"
-                )
+                try:
+                    refund_res = await UserServiceClient.refund_balance(
+                        user_id=tx.user_id,
+                        amount=tx.amount,
+                        transaction_id=tx.id,
+                        reason=f"Hoàn tiền do sự cố gạch nợ học phí ({err_detail})"
+                    )
+                    refund_success = refund_res.get("success", False) if isinstance(refund_res, dict) else True
+                except Exception as refund_err:
+                    print(f"CRITICAL: Refund failed for tx {tx.id}: {refund_err}")
+                    refund_success = False
 
-            # 3. Cập nhật trạng thái giao dịch
-            tx.status = "FAILED"
-            tx.failure_reason = f"Gạch nợ học phí không thành công ({err_detail}). Số tiền {tx.amount:,.0f} VNĐ đã được hoàn lại vào tài khoản của bạn."
+            # 3. Cập nhật trạng thái giao dịch chuẩn xác (Không báo đã hoàn tiền nếu refund thất bại)
+            if not deducted_successfully or refund_success:
+                tx.status = "FAILED"
+                tx.failure_reason = f"Gạch nợ học phí không thành công ({err_detail}). Số tiền {tx.amount:,.0f} VNĐ đã được hoàn lại vào tài khoản của bạn."
+            else:
+                tx.status = "COMPENSATION_PENDING"
+                tx.failure_reason = f"Gạch nợ học phí thất bại và hệ thống gặp sự cố khi hoàn tiền tự động ({err_detail}). Giao dịch đang chờ đối soát bồi hoàn."
             await db.commit()
 
-            # 4. GỬI EMAIL THÔNG BÁO THẤT BẠI VÀ ĐÃ HOÀN TIỀN VỀ VÍ (Chuẩn mực ngân hàng)
-            await NotificationServiceClient.send_failure_refund(
-                to_email=tx.user_email,
-                recipient_name=tx.username,
-                transaction_id=tx.id,
-                student_code=tx.student_code,
-                amount=tx.amount,
-                reason=tx.failure_reason
-            )
+            # 4. GỬI EMAIL THÔNG BÁO THẤT BẠI (Chỉ báo đã hoàn tiền nếu hoàn tiền thực sự thành công)
+            if deducted_successfully and refund_success:
+                await NotificationServiceClient.send_failure_refund(
+                    to_email=tx.user_email,
+                    recipient_name=tx.username,
+                    transaction_id=tx.id,
+                    student_code=tx.student_code,
+                    amount=tx.amount,
+                    reason=tx.failure_reason
+                )
 
             status_code = e.status_code if isinstance(e, HTTPException) else status.HTTP_500_INTERNAL_SERVER_ERROR
             raise HTTPException(

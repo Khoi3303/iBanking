@@ -1,7 +1,7 @@
-import random
-import string
+import secrets
+import hashlib
 import redis.asyncio as aioredis
-from typing import Optional
+from typing import Optional, Tuple
 from app.config import settings
 
 # Kết nối Async Redis
@@ -12,63 +12,66 @@ redis_client = aioredis.from_url(
     socket_connect_timeout=5.0
 )
 
+def hash_otp(code: str) -> str:
+    """Băm mã OTP bằng SHA-256 trước khi lưu trữ (OWASP Security standard)."""
+    return hashlib.sha256(code.strip().encode("utf-8")).hexdigest()
+
 async def generate_unique_otp(transaction_id: str, length: int = 6, expire_seconds: int = 300) -> str:
     """
-    Sinh mã OTP ngẫu nhiên đáp ứng trọn vẹn Mục 3 của đề bài:
+    Sinh mã OTP ngẫu nhiên bằng CSPRNG (secrets.randbelow) đáp ứng khuyến nghị OWASP:
     1. Gắn với một giao dịch cụ thể (Key: otp:{transaction_id}).
-    2. Không trùng với OTP đang có hiệu lực của giao dịch khác.
+    2. Chỉ lưu chuỗi băm SHA-256 trong Redis, không lưu plaintext.
     3. Hết hạn tối đa 5 phút (TTL 300s).
-    4. Chỉ được sử dụng thành công 1 lần.
+    4. Chỉ được sử dụng thành công 1 lần (Single-use).
+    5. Đếm số lần thử (tối đa 5 lần) chống brute-force.
     """
-    max_attempts = 10
-    otp_code = None
+    # CSPRNG - Cryptographically Secure Pseudo-Random Number Generator
+    otp_code = f"{secrets.randbelow(10 ** length):0{length}d}"
+    otp_hashed = hash_otp(otp_code)
 
-    for _ in range(max_attempts):
-        candidate = "".join(random.choices(string.digits, k=length))
-        is_active = await redis_client.exists(f"active_otp_code:{candidate}")
-        if not is_active:
-            otp_code = candidate
-            break
+    # Lưu mã OTP băm theo transaction_id có TTL 300s
+    await redis_client.set(f"otp:{transaction_id}", otp_hashed, ex=expire_seconds)
+    # Khởi tạo bộ đếm số lần nhập sai
+    await redis_client.set(f"otp_attempts:{transaction_id}", "0", ex=expire_seconds)
 
-    if not otp_code:
-        otp_code = "".join(random.choices(string.digits, k=length))
-
-    # Lưu mã OTP theo transaction_id có TTL 300s
-    await redis_client.set(f"otp:{transaction_id}", otp_code, ex=expire_seconds)
-    # Đánh dấu mã OTP này đang có hiệu lực trong toàn hệ thống
-    await redis_client.set(f"active_otp_code:{otp_code}", transaction_id, ex=expire_seconds)
-
+    # Chỉ trả về mã gốc cho luồng gửi email tới người dùng, không lưu plaintext ở bất kỳ đâu
     return otp_code
 
 
-async def verify_otp(transaction_id: str, input_otp: str) -> bool:
+async def verify_otp(transaction_id: str, input_otp: str, max_attempts: int = 5) -> Tuple[bool, str, bool]:
     """
-    Kiểm tra mã OTP có hợp lệ và còn hạn hay không (CHƯA XÓA).
-    Dùng trước khi chiếm Lock để tránh mất OTP nếu chiếm Lock thất bại.
+    Kiểm tra mã OTP có hợp lệ và còn hạn hay không:
+    - Trả về tuple: (is_valid: bool, message: str, is_expired_or_locked: bool)
+    - Tự động đếm và chặn brute-force sau max_attempts lần sai.
+    - Không xóa ngay để bảo vệ nếu bước chiếm Distributed Lock bận.
     """
-    stored_otp = await redis_client.get(f"otp:{transaction_id}")
-    if not stored_otp:
-        return False
-    return stored_otp.strip() == input_otp.strip()
+    stored_hash = await redis_client.get(f"otp:{transaction_id}")
+    if not stored_hash:
+        return False, "Mã OTP đã hết hạn (quá 5 phút) hoặc không tồn tại.", True
+
+    # Tăng số lần thử
+    attempts = await redis_client.incr(f"otp_attempts:{transaction_id}")
+    if attempts > max_attempts:
+        # Vượt quá số lần thử -> Hủy ngay OTP
+        await consume_otp(transaction_id)
+        return False, f"Bạn đã nhập sai mã OTP quá {max_attempts} lần. Giao dịch đã bị hủy để bảo vệ tài khoản.", True
+
+    # So sánh mã băm
+    input_hashed = hash_otp(input_otp)
+    if input_hashed == stored_hash:
+        return True, "Mã OTP hợp lệ.", False
+    else:
+        remaining = max(0, max_attempts - attempts)
+        return False, f"Mã OTP không chính xác. Bạn còn {remaining} lần thử.", (remaining == 0)
 
 
 async def consume_otp(transaction_id: str):
     """
-    Tiêu thụ và XÓA VĨNH VIỄN mã OTP sau khi đã chiếm Lock an toàn.
+    Tiêu thụ và XÓA VĨNH VIỄN mã OTP sau khi xác thực thành công.
     Đảm bảo tính chất Single-use (chỉ dùng thành công 1 lần duy nhất).
     """
-    stored_otp = await redis_client.get(f"otp:{transaction_id}")
-    if stored_otp:
-        await redis_client.delete(f"otp:{transaction_id}")
-        await redis_client.delete(f"active_otp_code:{stored_otp}")
-
-
-async def verify_and_consume_otp(transaction_id: str, input_otp: str) -> bool:
-    """Tiện ích kiểm tra và tiêu thụ OTP trong 1 bước."""
-    if await verify_otp(transaction_id, input_otp):
-        await consume_otp(transaction_id)
-        return True
-    return False
+    await redis_client.delete(f"otp:{transaction_id}")
+    await redis_client.delete(f"otp_attempts:{transaction_id}")
 
 
 async def invalidate_otp(transaction_id: str):
