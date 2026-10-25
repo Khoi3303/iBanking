@@ -3,22 +3,22 @@ chcp 65001 >nul
 :MENU
 cls
 echo ======================================================================
-echo          iBanking TDTU - BẢNG ĐIỀU KHIỂN & LỆNH NHANH (SOA)
+echo          iBanking TDTU - BANG DIEU KHIEN VA LENH NHANH (SOA)
 echo ======================================================================
 echo.
-echo   [1] Khởi động toàn bộ hệ thống (docker compose up -d)
-echo   [2] Rebuild nhanh các service đã sửa (Frontend, Gateway, User Service)
-echo   [3] Reset trạng thái dữ liệu demo (Đặt hóa đơn về UNPAID & số dư 20tr)
-echo   [4] Kiểm tra trạng thái các Container (docker compose ps)
-echo   [5] Xem Log gửi Email (Notification Service - SMTP)
-echo   [6] Xem Log điều phối giao dịch (Payment Service - Saga & OTP)
-echo   [7] Chạy kiểm thử tự động Concurrency & Saga
-echo   [8] Đẩy code mới lên GitHub (git_push.bat)
-echo   [9] Tắt toàn bộ hệ thống (docker compose down)
-echo   [0] Thoát
+echo   [1] Khoi dong toan bo he thong (docker compose up -d)
+echo   [2] Rebuild nhanh cac service da sua (Frontend, Gateway, User Service)
+echo   [3] Reset trang thai du lieu demo (Dat hoa don ve UNPAID va so du 20tr)
+echo   [4] Kiem tra trang thai cac Container (docker compose ps)
+echo   [5] Xem Log gui Email (Notification Service - SMTP)
+echo   [6] Xem Log dieu phoi giao dich (Payment Service - Saga va OTP)
+echo   [7] Chay kiem thu tu dong Concurrency va Saga
+echo   [8] Day code moi len GitHub (git_push.bat)
+echo   [9] Tat toan bo he thong (docker compose down)
+echo   [0] Thoat
 echo.
 echo ======================================================================
-set /p opt="Vui lòng nhập lựa chọn của bạn: "
+set /p opt="Vui long nhap lua chon cua ban: "
 
 if "%opt%"=="1" goto START
 if "%opt%"=="2" goto REBUILD
@@ -34,30 +34,30 @@ goto MENU
 
 :START
 echo.
-echo Đang khởi động hệ thống...
+echo Dang khoi dong he thong...
 docker compose up -d
-echo Hoàn tất!
+echo Hoan tat!
 pause
 goto MENU
 
 :REBUILD
 echo.
-echo Đang rebuild và cập nhật các dịch vụ...
+echo Dang rebuild va cap nhat cac dich vu...
 if exist fix.sql del /f /q fix.sql >nul 2>&1
 if exist database\fix_utf8.sql del /f /q database\fix_utf8.sql >nul 2>&1
 if exist database\add_test_accounts.sql del /f /q database\add_test_accounts.sql >nul 2>&1
 if exist nap_tai_khoan_ngay.bat del /f /q nap_tai_khoan_ngay.bat >nul 2>&1
 docker compose exec -T mysql mysql --default-character-set=utf8mb4 -u root -prootpassword < database\reset_demo.sql >nul 2>&1
 docker compose up -d --build --remove-orphans frontend api-gateway user-service tuition-service payment-service notification-service
-echo Hoàn tất! Nhấn Ctrl + F5 trên trình duyệt để kiểm tra.
+echo Hoan tat! Nhan Ctrl + F5 tren trinh duyet de kiem tra.
 pause
 goto MENU
 
 :RESET
 echo.
-echo Đang khôi phục hóa đơn học phí về UNPAID và số dư về 20.000.000 VNĐ...
+echo Dang khoi phuc hoa don hoc phi ve UNPAID va so du ve 20.000.000 VND...
 docker compose exec -T mysql mysql --default-character-set=utf8mb4 -u root -prootpassword < database\reset_demo.sql
-echo Hoàn tất! Bạn có thể thanh toán lại ngay.
+echo Hoan tat! Ban co the thanh toan lai ngay.
 pause
 goto MENU
 
@@ -69,19 +69,19 @@ goto MENU
 
 :LOG_MAIL
 echo.
-echo Đang xem log Notification Service (Nhấn Ctrl + C để quay lại menu)...
+echo Dang xem log Notification Service (Nhan Ctrl + C de quay lai menu)...
 docker compose logs -f notification-service
 goto MENU
 
 :LOG_PAY
 echo.
-echo Đang xem log Payment Service (Nhấn Ctrl + C để quay lại menu)...
+echo Dang xem log Payment Service (Nhan Ctrl + C de quay lai menu)...
 docker compose logs -f payment-service
 goto MENU
 
 :TEST
 echo.
-echo Đang chạy kịch bản kiểm thử tự động Concurrency & Saga...
+echo Dang chay kich ban kiem thu tu dong Concurrency va Saga...
 python scripts\test_concurrency.py
 pause
 goto MENU
@@ -93,8 +93,8 @@ goto MENU
 
 :STOP
 echo.
-echo Đang tắt toàn bộ hệ thống...
+echo Dang tat toan bo he thong...
 docker compose down
-echo Đã tắt hoàn tất.
+echo Da tat hoan tat.
 pause
 goto MENU

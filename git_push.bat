@@ -1,34 +1,39 @@
 @echo off
 chcp 65001 >nul
 echo ========================================================
-echo   ĐẨY CODE MỚI LÊN GITHUB CHO CÁC BẠN TRONG NHÓM
+echo   DAY CODE MOI LEN GITHUB CHO CAC BAN TRONG NHOM
 echo ========================================================
 echo.
-echo [1/3] Trạng thái các file đã thay đổi:
+
+:: Dam bao go bo .env khoi Git tracking de khong bi lo thong tin mat khau/SMTP
+git rm --cached .env >nul 2>&1
+git rm --cached .env.local >nul 2>&1
+
+echo [1/3] Trang thai cac file da thay doi:
 git status -s
 echo.
 
-set /p msg="Nhập ghi chú commit (hoặc nhấn Enter để dùng mặc định): "
-if "%msg%"=="" set msg=Cap nhat chuc nang nap tien, mac dinh 0d va cac script tien ich
+set /p msg="Nhap ghi chu commit (hoac nhan Enter de dung mac dinh): "
+if "%msg%"=="" set msg=Cap nhat he thong iBanking
 
 echo.
-echo [2/3] Đang lưu thay đổi (git add + git commit)...
+echo [2/3] Dang luu thay doi (git add + git commit)...
 git add .
 git commit -m "%msg%"
 
 echo.
-echo [3/3] Đang đẩy lên GitHub (git push origin)...
+echo [3/3] Dang day len GitHub (git push origin)...
 git push
 
 if %ERRORLEVEL% EQU 0 (
     echo.
     echo ========================================================
-    echo   ĐÃ ĐẨY LÊN GITHUB THÀNH CÔNG!
-    echo   Bạn của bạn chỉ cần mở terminal và gõ: git pull
+    echo   DA DAY LEN GITHUB THANH CONG!
+    echo   Ban cua ban chi can mo terminal va go: git pull
     echo ========================================================
 ) else (
     echo.
-    echo [!] Đẩy lên GitHub không thành công. Vui lòng kiểm tra kết nối mạng hoặc quyền truy cập repository.
+    echo [!] Day len GitHub khong thanh cong. Vui long kiem tra ket noi mang hoac quyen truy cap repository.
 )
 
 echo.

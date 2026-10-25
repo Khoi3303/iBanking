@@ -2,19 +2,48 @@
 # Git Ignore - iBanking Microservices (SOA - TDTU)
 # ========================================================
 
-# Byte-compiled / optimized / DLL files
+# --------------------------------------------------------
+# 1. Environment Variables & Secrets (Bảo mật tài khoản, mật khẩu, API keys)
+# --------------------------------------------------------
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+secrets/
+credentials.json
+
+# --------------------------------------------------------
+# 2. Python Byte-compiled & Build Artifacts
+# --------------------------------------------------------
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+build/
+dist/
+*.egg-info/
+*.egg
 
-# Caches
+# --------------------------------------------------------
+# 3. Testing & Coverage
+# --------------------------------------------------------
 .pytest_cache/
 .coverage
 htmlcov/
 .cache/
+.mypy_cache/
+.ruff_cache/
 
-# Virtual Environments
+# --------------------------------------------------------
+# 4. Virtual Environments
+# --------------------------------------------------------
 venv/
 .venv/
 env/
@@ -22,26 +51,43 @@ ENV/
 env.bak/
 venv.bak/
 
-# (File .env và cấu hình đã được cho phép commit để nhóm làm chung chạy ngay)
-*.pem
-*.key
+# --------------------------------------------------------
+# 5. Database & Local Runtime State
+# --------------------------------------------------------
+data/
+*.sqlite3
+*.db
+dump.rdb
+mysql_data/
 
-# Temporary logs
+# --------------------------------------------------------
+# 6. Temporary Logs & Runtime Files
+# --------------------------------------------------------
 *.log
 logs/
+*.pid
 
-# IDE & Editor files
+# --------------------------------------------------------
+# 7. IDE & Editor Files
+# --------------------------------------------------------
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# Operating System files
+# --------------------------------------------------------
+# 8. Operating System Files
+# --------------------------------------------------------
 .DS_Store
 Thumbs.db
 desktop.ini
+ehthumbs.db
 
-# AI Agent & Antigravity IDE local cache
+# --------------------------------------------------------
+# 9. AI Agent & Antigravity IDE Local Files
+# --------------------------------------------------------
 .agents/
 .gemini/
+powershell.cmd
+

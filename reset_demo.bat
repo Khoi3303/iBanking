@@ -1,11 +1,11 @@
 @echo off
 chcp 65001 >nul
 echo ========================================================
-echo   KHÔI PHỤC TRẠNG THÁI DEMO (RESET THANH TOÁN 524H0001)
+echo   KHOI PHUC TRANG THAI DEMO (RESET THANH TOAN 524H0001)
 echo ========================================================
 echo.
-echo Đang đặt lại hóa đơn 524H0001 thành UNPAID...
-echo Đang đặt lại số dư nguyenvana = 20.000.000 VNĐ...
+echo Dang dat lai hoa don 524H0001 thanh UNPAID...
+echo Dang dat lai so du nguyenvana = 20.000.000 VND...
 echo.
 
 if exist fix.sql del /f /q fix.sql >nul 2>&1
@@ -18,15 +18,15 @@ docker compose exec -T mysql mysql --default-character-set=utf8mb4 -u root -proo
 if %ERRORLEVEL% EQU 0 (
     echo.
     echo ========================================================
-    echo   ĐÃ KHÔI PHỤC THÀNH CÔNG!
-    echo   - Trạng thái hóa đơn: Đã chuyển về UNPAID
-    echo   - Số dư tài khoản: 20.000.000 VNĐ
-    echo   - Bạn có thể tải lại trang (F5) và thực hiện thanh toán lại.
+    echo   DA KHOI PHUC THANH CONG!
+    echo   - Trang thai hoa don: Da chuyen ve UNPAID
+    echo   - So du tai khoan: 20.000.000 VND
+    echo   - Ban co the tai lai trang (F5) va thuc hien thanh toan lai.
     echo ========================================================
 ) else (
     echo.
-    echo [LỖI] Không thể kết nối vào MySQL container.
-    echo       Hãy đảm bảo Docker Desktop đang chạy và container mysql đang bật.
+    echo [LOI] Khong the ket noi vao MySQL container.
+    echo       Hay dam bao Docker Desktop dang chay va container mysql dang bat.
 )
 
 echo.

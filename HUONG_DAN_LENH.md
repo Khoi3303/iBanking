@@ -163,6 +163,11 @@ type database\reset_demo.sql | docker compose exec -T mysql mysql -u root -proot
 
 ## 7. CÂU LỆNH GIT LÀM VIỆC NHÓM
 
+* **Gỡ bỏ theo dõi file .env (Bảo vệ mật khẩu/SMTP không bị lộ):**
+  ```powershell
+  git rm --cached .env
+  ```
+  *(Hoặc chạy nhanh file `untrack_secrets.bat`).*
 * **Xem các file đã thay đổi:**
   ```powershell
   git status
