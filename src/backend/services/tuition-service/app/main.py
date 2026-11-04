@@ -91,6 +91,11 @@ async def get_student_tuition(
       1. Không tìm thấy sinh viên -> 404
       2. Đã đóng học phí -> trả về status='PAID', can_pay=False (UI disable nút đóng tiền)
       3. Còn nợ học phí -> trả về status='UNPAID', can_pay=True kèm invoice_id
+
+    Ghi chú bảo mật: Endpoint này không yêu cầu Auth vì đây là chức năng tra cứu thông tin
+    học phí công khai (giống cổng thông tin tra cứu học phí TDTU hiện tại). Trong môi trường
+    production, endpoint chỉ được truy cập từ trong mạng nội bộ Docker (không expose ra internet).
+    Các API thực sự thực hiện thay đổi dữ liệu (/internal/tuition/*) đều yêu cầu X-Internal-Secret.
     """
     inquiry = await inquire_student_tuition(db=db, student_code=student_code.strip())
     return inquiry
