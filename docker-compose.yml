@@ -70,6 +70,8 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+    volumes:
+      - ./src/backend/services/user-service/app:/app/app
     networks:
       - ibanking-net
 
@@ -94,6 +96,8 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+    volumes:
+      - ./src/backend/services/tuition-service/app:/app/app
     networks:
       - ibanking-net
 
@@ -127,6 +131,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./src/backend/services/payment-service/app:/app/app
     networks:
       - ibanking-net
 
@@ -196,6 +202,8 @@ services:
       - user-service
       - tuition-service
       - payment-service
+    volumes:
+      - ./src/backend/api-gateway/app:/app/app
     networks:
       - ibanking-net
 

@@ -157,6 +157,7 @@ erDiagram
         string full_name
         string class_name
         string major
+        string email "Email sinh viên TDTU"
     }
 
     TUITION_INVOICES {
@@ -174,11 +175,16 @@ erDiagram
     TRANSACTIONS {
         string id PK "UUID giao dịch"
         int user_id FK
+        string username
+        string user_email
         string student_code
         string student_name
+        int invoice_id
+        string semester
         decimal amount
-        string status "PENDING_OTP, SUCCESS, FAILED, EXPIRED"
-        string payment_description
+        string idempotency_key
+        string status "PENDING_OTP, PROCESSING, SUCCESS, FAILED, EXPIRED, CANCELLED, COMPENSATION_PENDING"
+        string failure_reason
         datetime created_at
         datetime completed_at
     }
@@ -186,7 +192,7 @@ erDiagram
     OTP_TOKENS {
         int id PK
         string transaction_id FK
-        string otp_code "Mã 6 số"
+        string otp_code "SHA-256 hash của OTP gốc (OWASP - không lưu plaintext)"
         datetime expires_at "Hết hạn sau 5 phút"
         boolean is_used "Đã dùng hay chưa"
         datetime created_at
@@ -258,7 +264,7 @@ Theo yêu cầu mục 5 và Tiêu chí 6 của đề bài:
   - Request: `{"username": "user1", "password": "password123"}`
   - Response 200: `{"access_token": "...", "token_type": "bearer", "user": {...}}`
 - `GET /api/users/me`: Lấy thông tin cá nhân (Họ tên, SĐT, Email, Số dư khả dụng).
-- `GET /api/users/me/history`: Xem lịch sử các giao dịch đã thực hiện.
+- `GET /api/users/me/transactions`: Xem lịch sử biến động số dư và các giao dịch đã thực hiện.
 
 #### Tuition Service (`http://localhost:8000/api/tuition`)
 - `GET /api/tuition/students/{student_code}`: Tra cứu thông tin sinh viên và học phí cần đóng.
