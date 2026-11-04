@@ -92,6 +92,13 @@ function initEventListeners() {
             }
         });
     }
+
+    // Tự động đồng bộ trạng thái khi người dùng click/chuyển qua lại giữa các cửa sổ
+    window.addEventListener("focus", () => {
+        if (state.token && state.currentTuition && !state.currentTransactionId) {
+            searchStudentTuition();
+        }
+    });
 }
 
 async function checkExistingSession() {
@@ -263,12 +270,15 @@ function renderTuitionResult(tuition) {
 
     // Cập nhật Banner trạng thái
     const banner = document.getElementById("tuitionStatusBanner");
-    if (tuition.status === "UNPAID") {
+    if (tuition.status === "UNPAID" && tuition.can_pay !== false) {
         banner.className = "status-banner unpaid";
         banner.textContent = `Khoản nợ còn phải thanh toán cho học kỳ ${tuition.semester}.`;
     } else if (tuition.status === "PAID") {
         banner.className = "status-banner paid";
         banner.textContent = tuition.message;
+    } else if (tuition.can_pay === false && tuition.status === "UNPAID") {
+        banner.className = "status-banner nodebt";
+        banner.textContent = tuition.message || "Khoản học phí này hiện tạm thời không thể thực hiện giao dịch.";
     } else {
         banner.className = "status-banner nodebt";
         banner.textContent = tuition.message;
@@ -292,11 +302,15 @@ function validatePaymentConditions() {
     const termsCheckbox = document.getElementById("agreeTermsCheckbox");
     const boxRemaining = document.getElementById("boxRemainingBalance");
 
+    if (!btnConfirm) return;
+
     if (!state.currentUser || !state.currentTuition) {
         btnConfirm.disabled = true;
+        btnConfirm.textContent = "Vui lòng tra cứu học phí";
+        btnConfirm.title = "Vui lòng nhập MSSV và tra cứu thông tin học phí trước khi tiếp tục.";
         btnConfirm.classList.remove("btn-ready");
-        alertInsufficient.classList.add("hidden");
-        boxRemaining.textContent = "0 VND";
+        if (alertInsufficient) alertInsufficient.classList.add("hidden");
+        if (boxRemaining) boxRemaining.textContent = "0 VND";
         return;
     }
 
@@ -317,6 +331,9 @@ function validatePaymentConditions() {
     // 1. Khoản học phí tồn tại và chưa được thanh toán (status == UNPAID & can_pay == true)
     // 2. Số dư khả dụng của người nộp >= số tiền cần thanh toán
     // 3. Đã đồng ý điều khoản
+    const isPaid = state.currentTuition.status === "PAID";
+    const isNoDebt = state.currentTuition.status === "NO_DEBT";
+    const isCannotPay = state.currentTuition.can_pay === false && !isPaid && !isNoDebt;
     const isUnpaid = state.currentTuition.status === "UNPAID" && (state.currentTuition.can_pay !== false);
     const isBalanceEnough = userBalance >= tuitionAmount;
 
@@ -329,12 +346,41 @@ function validatePaymentConditions() {
     // Người dùng phải chủ động tích chọn đồng ý điều khoản trước khi thanh toán
     const termsAgreed = termsCheckbox ? termsCheckbox.checked : false;
 
-    if (isUnpaid && isBalanceEnough && termsAgreed) {
+    // CẬP NHẬT TRẠNG THÁI & NỘI DUNG NÚT THEO NGỮ CẢNH THỰC TẾ
+    if (isPaid) {
+        btnConfirm.disabled = true;
+        btnConfirm.textContent = "Khoản học phí đã thanh toán";
+        btnConfirm.title = "Học phí của sinh viên này đã được thanh toán hoàn tất.";
+        btnConfirm.classList.remove("btn-ready");
+    } else if (isNoDebt) {
+        btnConfirm.disabled = true;
+        btnConfirm.textContent = "Không có công nợ cần nộp";
+        btnConfirm.title = "Sinh viên không có học phí phát sinh trong học kỳ hiện tại.";
+        btnConfirm.classList.remove("btn-ready");
+    } else if (isCannotPay) {
+        btnConfirm.disabled = true;
+        btnConfirm.textContent = "Không thể thực hiện giao dịch";
+        btnConfirm.title = "Khoản học phí này hiện tạm thời không thể thực hiện giao dịch.";
+        btnConfirm.classList.remove("btn-ready");
+    } else if (!isBalanceEnough) {
+        btnConfirm.disabled = true;
+        btnConfirm.textContent = "Số dư không đủ để thanh toán";
+        btnConfirm.title = "Số dư khả dụng hiện tại nhỏ hơn số tiền học phí cần đóng.";
+        btnConfirm.classList.remove("btn-ready");
+    } else if (!termsAgreed) {
+        btnConfirm.disabled = true;
+        btnConfirm.textContent = "Vui lòng đồng ý điều khoản";
+        btnConfirm.title = "Vui lòng tích chọn đồng ý với Thỏa thuận & Điều khoản thanh toán.";
+        btnConfirm.classList.remove("btn-ready");
+    } else if (isUnpaid && isBalanceEnough && termsAgreed) {
         btnConfirm.disabled = false;
         btnConfirm.textContent = "Xác nhận giao dịch";
+        btnConfirm.title = "Nhấn để xác nhận giao dịch và nhận mã xác thực OTP qua Email.";
         btnConfirm.classList.add("btn-ready");
     } else {
         btnConfirm.disabled = true;
+        btnConfirm.textContent = "Không thể thực hiện giao dịch";
+        btnConfirm.title = "Giao dịch không đủ điều kiện thực hiện theo quy định ngân hàng.";
         btnConfirm.classList.remove("btn-ready");
     }
 }
@@ -381,8 +427,14 @@ async function initiatePayment() {
         showToast("Mã OTP đã được gửi đến email của bạn!", "success");
     } catch (err) {
         showToast(err.message, "error");
+
+        // Reset lại tích chọn điều khoản
+        const termsCheckbox = document.getElementById("agreeTermsCheckbox");
+        if (termsCheckbox) termsCheckbox.checked = false;
+
+        // Đồng bộ lại dữ liệu học phí tươi từ server (chờ hoàn tất)
+        await searchStudentTuition();
     } finally {
-        btnConfirm.textContent = "Xác nhận giao dịch";
         validatePaymentConditions();
     }
 }
@@ -404,6 +456,12 @@ function startOtpCountdown(seconds) {
     clearInterval(state.otpTimerInterval);
     state.otpSecondsRemaining = seconds;
 
+    // Ẩn nút "Tạo lại" khi bắt đầu phiên OTP mới
+    const btnRetry = document.getElementById("btnRetryPayment");
+    if (btnRetry) btnRetry.classList.add("hidden");
+    document.getElementById("btnSubmitOtp").classList.remove("hidden");
+    document.getElementById("btnSubmitOtp").disabled = false;
+
     updateTimerDisplay();
 
     state.otpTimerInterval = setInterval(() => {
@@ -411,8 +469,11 @@ function startOtpCountdown(seconds) {
         if (state.otpSecondsRemaining <= 0) {
             clearInterval(state.otpTimerInterval);
             document.getElementById("otpTimer").textContent = "00:00 (Hết hạn)";
-            showOtpError("Mã OTP đã hết hiệu lực (quá 5 phút). Vui lòng tạo lại giao dịch mới.");
+            showOtpError("Mã OTP đã hết hiệu lực (quá 5 phút). Nhấn 'Tạo lại giao dịch mới' để tiếp tục.");
+            // Ẩn nút xác nhận, hiện nút tạo lại
             document.getElementById("btnSubmitOtp").disabled = true;
+            document.getElementById("btnSubmitOtp").classList.add("hidden");
+            if (btnRetry) btnRetry.classList.remove("hidden");
         } else {
             updateTimerDisplay();
         }
@@ -424,6 +485,33 @@ function updateTimerDisplay() {
     const secs = state.otpSecondsRemaining % 60;
     const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     document.getElementById("otpTimer").textContent = formatted;
+}
+
+// TẠO LẠI GIAO DỊCH KHI OTP HẾT HẠN (UX: không cần reload trang)
+async function retryPayment() {
+    // 1. Đóng modal OTP và reset state phiên cũ
+    clearInterval(state.otpTimerInterval);
+    state.otpTimerInterval = null;
+    document.getElementById("otpModal").classList.add("hidden");
+    document.getElementById("otpCodeInput").value = "";
+    document.getElementById("otpErrorAlert").classList.add("hidden");
+
+    // Reset idempotency key để buộc tạo giao dịch mới
+    state.currentIdempotencyKey = null;
+    state.currentTransactionId = null;
+    state.isSubmittingOtp = false;
+
+    // 2. Hiện nút xác nhận lại
+    const btnRetry = document.getElementById("btnRetryPayment");
+    if (btnRetry) btnRetry.classList.add("hidden");
+    document.getElementById("btnSubmitOtp").classList.remove("hidden");
+
+    // 3. Reset điều khoản và validate lại
+    const termsCheckbox = document.getElementById("agreeTermsCheckbox");
+    if (termsCheckbox) termsCheckbox.checked = false;
+    validatePaymentConditions();
+
+    showToast("Phiên OTP đã hết hạn. Vui lòng xác nhận lại thông tin và tạo giao dịch mới.", "info");
 }
 
 // XỬ LÝ HỦY GIAO DỊCH TẠI MODAL OTP
