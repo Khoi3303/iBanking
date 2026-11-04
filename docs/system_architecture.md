@@ -5,7 +5,7 @@
 Hệ thống mô phỏng phân hệ thanh toán học phí iBanking cho sinh viên Trường Đại học Tôn Đức Thắng (TDTU), áp dụng kiến trúc Microservices sử dụng:
 - **Backend Framework:** Python (FastAPI)
 - **Database:** MySQL 8.0 (InnoDB Engine, hỗ trợ ACID transactions & Row-level Locking)
-- **Email Service:** SMTP (Gmail SMTP)
+- **Email Service:** SMTP Protocol (Mailpit Dev Server / Standard SMTP)
 - **Deployment:** Docker & Docker Compose
 - **Frontend:** Single Page Application (HTML5 / Vanilla CSS / Modern JS)
 
@@ -84,7 +84,7 @@ flowchart TB
     subgraph Integration ["Hệ thống Ngoại vi"]
         subgraph NotificationService ["Notification Service (Port 8004)"]
             NS_Logic[Gửi email OTP & Biên nhận]
-            SMTP_Server[SMTP Server (Gmail SMTP)]
+            SMTP_Server[SMTP Server (Mailpit / SMTP)]
             NS_Logic --- SMTP_Server
         end
     end

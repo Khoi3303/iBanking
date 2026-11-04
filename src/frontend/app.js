@@ -289,8 +289,8 @@ function renderTuitionResult(tuition) {
         banner.className = "status-banner paid";
         banner.textContent = tuition.message;
     } else if (tuition.can_pay === false && tuition.status === "UNPAID") {
-        banner.className = "status-banner nodebt";
-        banner.textContent = tuition.message || "Khoản học phí này hiện tạm thời không thể thực hiện giao dịch.";
+        banner.className = "status-banner locked";
+        banner.innerHTML = `<strong>⏳ Thông báo:</strong> ${tuition.message || "Khoản học phí này hiện tạm thời không thể thực hiện giao dịch."}`;
     } else {
         banner.className = "status-banner nodebt";
         banner.textContent = tuition.message;
@@ -311,6 +311,8 @@ function quickFillStudent(mssv) {
 function validatePaymentConditions() {
     const btnConfirm = document.getElementById("btnConfirmInitiate");
     const alertInsufficient = document.getElementById("insufficientBalanceAlert");
+    const alertCannotPay = document.getElementById("cannotPayAlert");
+    const alertCannotPayText = document.getElementById("cannotPayAlertText");
     const termsCheckbox = document.getElementById("agreeTermsCheckbox");
     const boxRemaining = document.getElementById("boxRemainingBalance");
 
@@ -322,6 +324,7 @@ function validatePaymentConditions() {
         btnConfirm.title = "Vui lòng nhập MSSV và tra cứu thông tin học phí trước khi tiếp tục.";
         btnConfirm.classList.remove("btn-ready");
         if (alertInsufficient) alertInsufficient.classList.add("hidden");
+        if (alertCannotPay) alertCannotPay.classList.add("hidden");
         if (boxRemaining) boxRemaining.textContent = "0 VND";
         return;
     }
@@ -349,10 +352,23 @@ function validatePaymentConditions() {
     const isUnpaid = state.currentTuition.status === "UNPAID" && (state.currentTuition.can_pay !== false);
     const isBalanceEnough = userBalance >= tuitionAmount;
 
+    // Cảnh báo số dư không đủ (chỉ hiện khi khoản nợ hợp lệ để đóng nhưng ví thiếu tiền)
     if (isUnpaid && !isBalanceEnough) {
-        alertInsufficient.classList.remove("hidden");
+        if (alertInsufficient) alertInsufficient.classList.remove("hidden");
     } else {
-        alertInsufficient.classList.add("hidden");
+        if (alertInsufficient) alertInsufficient.classList.add("hidden");
+    }
+
+    // Cảnh báo tạm khóa giao dịch ngay phía trên nút bấm (Cột C)
+    if (isCannotPay) {
+        if (alertCannotPay) {
+            alertCannotPay.classList.remove("hidden");
+            if (alertCannotPayText) {
+                alertCannotPayText.textContent = state.currentTuition.message || "Khoản học phí này hiện tạm thời không thể thực hiện giao dịch.";
+            }
+        }
+    } else {
+        if (alertCannotPay) alertCannotPay.classList.add("hidden");
     }
 
     // Người dùng phải chủ động tích chọn đồng ý điều khoản trước khi thanh toán

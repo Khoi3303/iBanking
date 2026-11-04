@@ -29,6 +29,6 @@ echo   - Tai khoan 1: nguyenvana     (nguyenvana@ibanking.tdtu.edu.vn) | MK: 123
 echo   - Tai khoan 2: lekhoi3303     (lekhoi3303@ibanking.tdtu.edu.vn) | MK: 123456 | 20tr VND
 echo   - Tai khoan 3: tienmobile2006 (tienmobile@ibanking.tdtu.edu.vn) | MK: 123456 | 20tr VND
 echo   - Tai khoan 4: mensieu123     (mensieu@ibanking.tdtu.edu.vn)    | MK: 123456 | 20tr VND
-echo   - Luu y: De nhan OTP qua hop thu that, cap nhat SMTP_USER va SMTP_PASSWORD trong file .env
+echo   - Hom thu xem OTP va Bien lai dien tu (Mailpit): http://localhost:8025
 echo ========================================================
 pause

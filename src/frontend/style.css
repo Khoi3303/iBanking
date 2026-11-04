@@ -237,6 +237,69 @@ body {
     display: block;
 }
 
+/* Khối Nhóm sinh viên thực hiện (Login Brand Panel) */
+.team-credits-card {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: var(--radius-md);
+    padding: clamp(10px, 1.4vh, 14px) clamp(12px, 1.4vw, 16px);
+    margin-top: clamp(14px, 2vh, 20px);
+    backdrop-filter: blur(6px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.credits-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
+.credits-icon {
+    font-size: 0.9rem;
+}
+
+.credits-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: #93C5FD;
+}
+
+.credits-members {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.credit-member {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.82rem;
+}
+
+.credit-member .member-name {
+    color: #F8FAFC;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+}
+
+.credit-member .member-mssv {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: #E2E8F0;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 1px 7px;
+    border-radius: var(--radius-sm);
+    letter-spacing: 0.5px;
+}
+
 /* Panel Phải: Form đăng nhập & Demo accounts */
 .login-form-panel {
     padding: clamp(24px, 4vh, 42px) clamp(24px, 3.5vw, 40px);
@@ -692,46 +755,6 @@ input:focus {
 }
 
 /* Stepper quy trình nghiệp vụ */
-.workflow-stepper {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 0;
-}
-
-.step-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--text-muted);
-}
-.step-item.active {
-    color: var(--brand-primary);
-}
-.step-num {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #E2E8F0;
-    color: #64748B;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.7rem;
-    font-weight: 700;
-}
-.step-item.active .step-num {
-    background: var(--brand-primary);
-    color: #FFFFFF;
-}
-.step-line {
-    width: 20px;
-    height: 2px;
-    background: #E2E8F0;
-}
-
 /* MAIN CONTENT CONTAINER */
 .main-content {
     width: min(95vw, 1680px);
@@ -934,6 +957,13 @@ input:focus {
     color: var(--brand-primary);
     border: 1px solid #BFDBFE;
 }
+.status-banner.locked {
+    background: #FFFBEB;
+    color: #92400E;
+    border: 1.5px solid #F59E0B;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
+    font-weight: 700;
+}
 
 .invoice-table {
     display: flex;
@@ -1037,6 +1067,11 @@ input:focus {
     background: var(--state-danger-light);
     border: 1px solid var(--state-danger-border);
     color: #991B1B;
+}
+.alert-warning {
+    background: #FFFBEB;
+    border: 1.5px solid #FDE68A;
+    color: #92400E;
 }
 .alert-icon { font-size: 1rem; }
 .alert-text strong { display: block; margin-bottom: 2px; }
@@ -1382,6 +1417,39 @@ input:focus {
     .feature-item span {
         display: none; /* Rút gọn mô tả khi chiều cao màn hình chật */
     }
+}
+
+/* ========================================================
+   DASHBOARD ACADEMIC FOOTER
+   ======================================================== */
+.dashboard-footer {
+    width: min(95vw, 1680px);
+    margin: 24px auto 30px auto;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.footer-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.footer-copy {
+    font-weight: 500;
+}
+
+.footer-team {
+    color: var(--text-body);
+}
+
+.footer-team strong {
+    color: var(--brand-primary);
+    font-weight: 700;
 }
 
 /* Tablet (768px - 1024px) */

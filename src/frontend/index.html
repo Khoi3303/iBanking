@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=8">
+    <link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
     <div id="app">
@@ -58,6 +58,28 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- KHỐI NHÓM SINH VIÊN THỰC HIỆN -->
+                        <div class="team-credits-card">
+                            <div class="credits-header">
+                                <span class="credits-icon">👥</span>
+                                <span class="credits-title">Nhóm sinh viên thực hiện</span>
+                            </div>
+                            <div class="credits-members">
+                                <div class="credit-member">
+                                    <span class="member-name">Lê Hoàng Minh Khôi</span>
+                                    <span class="member-mssv">524H0102</span>
+                                </div>
+                                <div class="credit-member">
+                                    <span class="member-name">Nguyễn Minh Đăng</span>
+                                    <span class="member-mssv">524H0082</span>
+                                </div>
+                                <div class="credit-member">
+                                    <span class="member-name">Nguyễn Thanh Tiền</span>
+                                    <span class="member-mssv">524H0035</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- CỘT PHẢI: FORM ĐĂNG NHẬP & TÀI KHOẢN MẪU -->
@@ -87,7 +109,6 @@
                         <!-- TÀI KHOẢN MẪU KHỞI TẠO SẴN CHO HỘI ĐỒNG CHẤM -->
                         <div class="demo-accounts-box">
                             <div class="demo-box-header">
-                                <span class="demo-tag">HỖ TRỢ CHẤM BÀI</span>
                                 <span class="demo-label">Chọn nhanh tài khoản kiểm thử (MK: 123456):</span>
                             </div>
                             <div class="demo-chips-grid">
@@ -170,24 +191,6 @@
                         <button id="tabHistoryBtn" class="tab-btn" onclick="switchTab('history')">
                             <span class="tab-icon">📜</span> Lịch sử giao dịch
                         </button>
-                    </div>
-
-                    <!-- WORKFLOW STEPPER (Trực quan hóa luồng nghiệp vụ) -->
-                    <div class="workflow-stepper">
-                        <div class="step-item active">
-                            <span class="step-num">1</span>
-                            <span class="step-text">Tra cứu học phí</span>
-                        </div>
-                        <div class="step-line"></div>
-                        <div class="step-item">
-                            <span class="step-num">2</span>
-                            <span class="step-text">Kiểm tra điều kiện</span>
-                        </div>
-                        <div class="step-line"></div>
-                        <div class="step-item">
-                            <span class="step-num">3</span>
-                            <span class="step-text">Xác thực OTP</span>
-                        </div>
                     </div>
                 </div>
             </section>
@@ -346,6 +349,15 @@
                                         </div>
                                     </div>
 
+                                    <!-- CẢNH BÁO TẠM KHÓA GIAO DỊCH -->
+                                    <div id="cannotPayAlert" class="alert-box alert-warning hidden mt-3">
+                                        <div class="alert-icon">⏳</div>
+                                        <div class="alert-text">
+                                            <strong>Tạm thời không thể giao dịch:</strong>
+                                            <span id="cannotPayAlertText">Khoản học phí này hiện tạm thời không thể thực hiện giao dịch.</span>
+                                        </div>
+                                    </div>
+
                                     <!-- THỎA THUẬN VÀ ĐIỀU KHOẢN HỆ THỐNG -->
                                     <div class="terms-card mt-3">
                                         <label class="terms-checkbox-wrap">
@@ -417,6 +429,16 @@
                 </div>
 
             </main>
+
+            <!-- ACADEMIC DASHBOARD FOOTER -->
+            <footer class="dashboard-footer">
+                <div class="footer-container">
+                    <span class="footer-copy">© 2026 iBanking TDTU — Đồ án Kiến Trúc Hướng Dịch Vụ (CS504070)</span>
+                    <span class="footer-team">
+                        Nhóm sinh viên: <strong>Lê Hoàng Minh Khôi</strong> (524H0102) • <strong>Nguyễn Minh Đăng</strong> (524H0082) • <strong>Nguyễn Thanh Tiền</strong> (524H0035)
+                    </span>
+                </div>
+            </footer>
         </div>
 
         <!-- ========================================== -->
@@ -521,6 +543,6 @@
     </div>
 
     <!-- SCRIPT CHÍNH -->
-    <script src="app.js?v=8"></script>
+    <script src="app.js?v=10"></script>
 </body>
 </html>
