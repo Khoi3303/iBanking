@@ -18,6 +18,7 @@ const state = {
     currentTransactionId: null,
     otpTimerInterval: null,
     otpSecondsRemaining: 300,
+    otpExpiresAt: null, // Mốc thời gian tuyệt đối (timestamp) chống đóng băng khi ẩn tab
     isSubmittingOtp: false // Flag chống double click
 };
 
@@ -97,6 +98,17 @@ function initEventListeners() {
     window.addEventListener("focus", () => {
         if (state.token && state.currentTuition && !state.currentTransactionId) {
             searchStudentTuition();
+        }
+        // Đồng bộ thời gian đếm ngược OTP nếu đang mở modal OTP
+        if (state.otpExpiresAt) {
+            tickOtpCountdown();
+        }
+    });
+
+    // Lắng nghe sự kiện tab hoạt động trở lại (chống trình duyệt đóng băng timer khi chạy nền)
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden && state.otpExpiresAt) {
+            tickOtpCountdown();
         }
     });
 }
@@ -453,31 +465,59 @@ function openOtpModal(userEmail, seconds) {
 }
 
 function startOtpCountdown(seconds) {
-    clearInterval(state.otpTimerInterval);
-    state.otpSecondsRemaining = seconds;
+    if (state.otpTimerInterval) {
+        clearInterval(state.otpTimerInterval);
+        state.otpTimerInterval = null;
+    }
+
+    // Ghi nhận mốc thời gian tuyệt đối kết thúc đếm ngược (Wall-clock timestamp)
+    // Chống hiện tượng trình duyệt tối ưu hóa/đóng băng timer khi chuyển sang tab khác
+    state.otpExpiresAt = Date.now() + (seconds * 1000);
 
     // Ẩn nút "Tạo lại" khi bắt đầu phiên OTP mới
     const btnRetry = document.getElementById("btnRetryPayment");
     if (btnRetry) btnRetry.classList.add("hidden");
-    document.getElementById("btnSubmitOtp").classList.remove("hidden");
-    document.getElementById("btnSubmitOtp").disabled = false;
+    const btnSubmit = document.getElementById("btnSubmitOtp");
+    if (btnSubmit) {
+        btnSubmit.classList.remove("hidden");
+        btnSubmit.disabled = false;
+    }
 
-    updateTimerDisplay();
+    tickOtpCountdown();
 
     state.otpTimerInterval = setInterval(() => {
-        state.otpSecondsRemaining--;
-        if (state.otpSecondsRemaining <= 0) {
-            clearInterval(state.otpTimerInterval);
-            document.getElementById("otpTimer").textContent = "00:00 (Hết hạn)";
-            showOtpError("Mã OTP đã hết hiệu lực (quá 5 phút). Nhấn 'Tạo lại giao dịch mới' để tiếp tục.");
-            // Ẩn nút xác nhận, hiện nút tạo lại
-            document.getElementById("btnSubmitOtp").disabled = true;
-            document.getElementById("btnSubmitOtp").classList.add("hidden");
-            if (btnRetry) btnRetry.classList.remove("hidden");
-        } else {
-            updateTimerDisplay();
-        }
+        tickOtpCountdown();
     }, 1000);
+}
+
+function tickOtpCountdown() {
+    if (!state.otpExpiresAt) return;
+
+    const btnRetry = document.getElementById("btnRetryPayment");
+    const btnSubmit = document.getElementById("btnSubmitOtp");
+    const now = Date.now();
+    const remainingMs = state.otpExpiresAt - now;
+    const remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+    state.otpSecondsRemaining = remainingSeconds;
+
+    if (remainingSeconds <= 0) {
+        if (state.otpTimerInterval) {
+            clearInterval(state.otpTimerInterval);
+            state.otpTimerInterval = null;
+        }
+        state.otpExpiresAt = null;
+        document.getElementById("otpTimer").textContent = "00:00 (Hết hạn)";
+        showOtpError("Mã OTP đã hết hiệu lực (quá 5 phút). Nhấn 'Tạo lại giao dịch mới' để tiếp tục.");
+        
+        // Ẩn nút xác nhận, hiện nút tạo lại
+        if (btnSubmit) {
+            btnSubmit.disabled = true;
+            btnSubmit.classList.add("hidden");
+        }
+        if (btnRetry) btnRetry.classList.remove("hidden");
+    } else {
+        updateTimerDisplay();
+    }
 }
 
 function updateTimerDisplay() {
@@ -490,8 +530,11 @@ function updateTimerDisplay() {
 // TẠO LẠI GIAO DỊCH KHI OTP HẾT HẠN (UX: không cần reload trang)
 async function retryPayment() {
     // 1. Đóng modal OTP và reset state phiên cũ
-    clearInterval(state.otpTimerInterval);
-    state.otpTimerInterval = null;
+    if (state.otpTimerInterval) {
+        clearInterval(state.otpTimerInterval);
+        state.otpTimerInterval = null;
+    }
+    state.otpExpiresAt = null;
     document.getElementById("otpModal").classList.add("hidden");
     document.getElementById("otpCodeInput").value = "";
     document.getElementById("otpErrorAlert").classList.add("hidden");
@@ -521,6 +564,7 @@ async function cancelOtpModal() {
         clearInterval(state.otpTimerInterval);
         state.otpTimerInterval = null;
     }
+    state.otpExpiresAt = null;
 
     const txIdToCancel = state.currentTransactionId;
 
