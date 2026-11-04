@@ -1,12 +1,14 @@
 import uuid
 import time
 import logging
+from contextlib import asynccontextmanager
 from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException, status, Header, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, and_
+from datetime import datetime, timedelta
 from jose import jwt, JWTError
 
 from app.config import settings
@@ -19,17 +21,31 @@ from app.schemas import (
     TransactionResponse
 )
 from app.saga_orchestrator import initiate_payment_saga, confirm_payment_saga, cancel_payment_saga
+from app.clients import close_http_client
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("payment_service")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Quản lý vòng đời Payment Service:
+    - Khởi động: Shared HTTP Client (connection pool) đã được lazy-init trong clients.py.
+    - Tắt máy: Đóng gracefully shared HTTP Client để giải phóng connection.
+    """
+    yield
+    await close_http_client()
+
 
 app = FastAPI(
     title=settings.APP_NAME,
     version="1.0.0",
     description="Hệ thống điều phối giao dịch thanh toán học phí iBanking, quản lý OTP và Saga Orchestrator.",
     docs_url="/docs",
-    openapi_url="/openapi.json"
+    openapi_url="/openapi.json",
+    lifespan=lifespan
 )
 
 class CorrelationIDMiddleware(BaseHTTPMiddleware):
@@ -207,5 +223,47 @@ async def get_payment_history(
     )
     res = await db.execute(stmt)
     return list(res.scalars().all())
+
+
+@app.get(
+    "/payments/internal/pending-status/{student_code}",
+    tags=["Internal Payment APIs"]
+)
+async def check_student_pending_status(
+    student_code: str,
+    x_internal_key: Optional[str] = Header(None, alias="X-Internal-Secret"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    API nội bộ: Kiểm tra xem sinh viên có đang trong phiên giao dịch PENDING_OTP còn hạn (300s) hay không.
+    Dùng cho API Gateway khi tra cứu học phí để vô hiệu hóa nút thanh toán nếu có người khác đang giữ mã OTP.
+    """
+    expire_cutoff = datetime.utcnow() - timedelta(seconds=settings.OTP_EXPIRE_SECONDS)
+    stmt = (
+        select(Transaction)
+        .where(
+            and_(
+                Transaction.student_code == student_code.strip(),
+                Transaction.status == "PENDING_OTP",
+                Transaction.created_at >= expire_cutoff
+            )
+        )
+        .order_by(desc(Transaction.created_at))
+    )
+    res = await db.execute(stmt)
+    active_tx = res.scalar_one_or_none()
+
+    if active_tx:
+        return {
+            "is_pending": True,
+            "user_id": active_tx.user_id,
+            "transaction_id": active_tx.id
+        }
+    return {
+        "is_pending": False,
+        "user_id": None,
+        "transaction_id": None
+    }
+
 
 

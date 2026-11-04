@@ -116,7 +116,26 @@ async def initiate_payment_saga(
                 detail=f"Số dư khả dụng ({user_balance:,.0f} VNĐ) không đủ để thanh toán ({amount:,.0f} VNĐ)."
             )
 
-        # 3. Dọn dẹp các phiên PENDING_OTP cũ của user (xử lý case người dùng tắt đi bật lại)
+        # 3. Kiểm tra xem có người dùng khác đang giữ phiên PENDING_OTP còn hạn cho khoản học phí này không
+        # Giữ đúng tính bảo mật thông tin tài chính: Chỉ báo không thể giao dịch, không tiết lộ danh tính người khác.
+        expire_cutoff = datetime.utcnow() - timedelta(seconds=300)
+        stmt_other_pending = select(Transaction).where(
+            and_(
+                Transaction.student_code == student_code,
+                Transaction.status == "PENDING_OTP",
+                Transaction.user_id != user_id,
+                Transaction.created_at >= expire_cutoff
+            )
+        )
+        res_other = await db.execute(stmt_other_pending)
+        other_pending_tx = res_other.scalar_one_or_none()
+        if other_pending_tx:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Khoản học phí này hiện tạm thời không thể thực hiện giao dịch. Vui lòng thử lại sau."
+            )
+
+        # 4. Dọn dẹp các phiên PENDING_OTP cũ của chính user này (xử lý case người dùng tắt đi bật lại)
         stmt_old_pending = select(Transaction).where(
             and_(Transaction.user_id == user_id, Transaction.status == "PENDING_OTP")
         )
@@ -127,7 +146,7 @@ async def initiate_payment_saga(
             old_tx.failure_reason = "Người dùng khởi tạo phiên giao dịch mới"
             await invalidate_otp(old_tx.id)
 
-        # 4. Tạo giao dịch mới
+        # 5. Tạo giao dịch mới
         tx_id = str(uuid.uuid4())
         resolved_invoice_id = invoice_id or tuition_info.get("invoice_id")
 
@@ -207,8 +226,9 @@ async def confirm_payment_saga(
        - Gửi email thông báo thất bại & xác nhận hoàn tiền về ví cho người dùng!
     7. Thành công: Cập nhật SUCCESS, gửi email biên nhận và giải phóng Lock trong finally.
     """
-    # 1. Kiểm tra giao dịch tồn tại
-    stmt_tx = select(Transaction).where(Transaction.id == transaction_id)
+    # 1. Kiểm tra giao dịch tồn tại và khóa dòng (FOR UPDATE) để tránh race condition
+    # khi 2 request đồng thời confirm cùng 1 transaction_id đều thấy status=PENDING_OTP.
+    stmt_tx = select(Transaction).where(Transaction.id == transaction_id).with_for_update()
     res_tx = await db.execute(stmt_tx)
     tx = res_tx.scalar_one_or_none()
 
@@ -241,25 +261,29 @@ async def confirm_payment_saga(
             detail=otp_msg
         )
 
-    # 3. Bước B: Chiếm Distributed Lock (Redis Lock có TTL 30s chống Deadlock)
+    # 3. Bước B: Chiếm Distributed Lock (Redis Lock có TTL 30s chống Deadlock) trên user và sinh viên.
+    # QUAN TRỌNG: Luôn acquire lock theo thứ tự LEXICOGRAPHIC TĂNG DẦN của lock key để tránh DEADLOCK
+    # (khi 2 request tranh nhau: A chiếm lock_user trước, B chiếm lock_student trước → chờ nhau vĩnh viễn).
+    # Bằng cách sort key, cả 2 request đều chiếm cùng 1 thứ tự → không deadlock.
     lock_user_key = f"lock:user:{tx.user_id}"
     lock_student_key = f"lock:student:{tx.student_code}"
     lock_token = str(uuid.uuid4())
 
-    user_locked = await acquire_distributed_lock(lock_user_key, lock_token, ttl_seconds=30)
-    student_locked = await acquire_distributed_lock(lock_student_key, lock_token, ttl_seconds=30)
+    # Sắp xếp tất cả lock cần chiếm theo thứ tự từ điển để đảm bảo thứ tự nhất quán
+    all_lock_keys = sorted([lock_user_key, lock_student_key])
+    acquired_locks = []
 
-    if not user_locked or not student_locked:
-        # Nếu chưa chiếm được Lock, nhả lock một phần nếu có và báo bận (OTP vẫn còn nguyên)
-        if user_locked:
-            await release_distributed_lock(lock_user_key, lock_token)
-        if student_locked:
-            await release_distributed_lock(lock_student_key, lock_token)
-
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Hệ thống đang xử lý một giao dịch khác trên tài khoản hoặc khoản học phí này. Vui lòng bấm xác nhận lại sau vài giây."
-        )
+    for key in all_lock_keys:
+        if await acquire_distributed_lock(key, lock_token, ttl_seconds=30):
+            acquired_locks.append(key)
+        else:
+            # Giải phóng tất cả lock đã chiếm nếu có key nào chiếm thất bại
+            for acquired_key in acquired_locks:
+                await release_distributed_lock(acquired_key, lock_token)
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Hệ thống đang xử lý một giao dịch khác trên tài khoản hoặc khoản học phí này. Vui lòng bấm xác nhận lại sau vài giây."
+            )
 
     # 4. Bước C: Đã chiếm Lock an toàn -> Tiêu thụ và XÓA VĨNH VIỄN mã OTP (Single-use)
     await consume_otp(transaction_id)
@@ -390,9 +414,9 @@ async def confirm_payment_saga(
         }
 
     finally:
-        # LUÔN GIẢI PHÓNG DISTRIBUTED LOCK TRONG FINALLY
-        await release_distributed_lock(lock_user_key, lock_token)
-        await release_distributed_lock(lock_student_key, lock_token)
+        # LUÔN GIẢI PHÓNG TẤT CẢ DISTRIBUTED LOCK TRONG FINALLY (theo thứ tự ngược lại)
+        for key in reversed(all_lock_keys):
+            await release_distributed_lock(key, lock_token)
 
 
 async def cancel_payment_saga(db: AsyncSession, transaction_id: str, user_id: int) -> dict:
