@@ -124,84 +124,91 @@ flowchart TB
 
 ---
 
-### 4. Sơ đồ Thực thể Quan hệ (ERD - Entity Relationship Diagram)
+### 4. Sơ đồ Thực thể Quan hệ (ERD - Database-per-Service)
+
+Cơ sở dữ liệu được tổ chức theo đúng nguyên tắc **Database-per-Service** với 3 cơ sở dữ liệu MySQL 8.0 (InnoDB) độc lập. Các quan hệ khóa ngoại vật lý (Foreign Keys) chỉ được thiết lập trong nội bộ từng cơ sở dữ liệu. Giữa các microservice khác nhau, hệ thống chỉ lưu trữ các giá trị tham chiếu logic (`user_id`, `student_code`, `invoice_id`), tuyệt đối không tạo ràng buộc khóa ngoại xuyên database.
 
 ```mermaid
 erDiagram
-    %% User Database
+    %% 1. USER SERVICE DATABASE (ibanking_user_db)
     USERS {
-        int id PK
-        string username UK
-        string password_hash
-        string full_name
-        string phone_number
-        string email
+        int id PK "Khóa chính tăng tự động"
+        varchar username UK "Tên đăng nhập duy nhất"
+        varchar password_hash "Mật khẩu mã hóa Bcrypt"
+        varchar full_name "Họ tên chủ tài khoản"
+        varchar phone_number UK "Số điện thoại duy nhất"
+        varchar email UK "Email nhận mã OTP duy nhất"
         decimal balance "Số dư khả dụng (CHECK >= 0)"
-        datetime created_at
+        timestamp created_at
+        timestamp updated_at
     }
 
     ACCOUNT_TRANSACTIONS {
         int id PK
-        int user_id FK
-        decimal amount
-        string transaction_type "DEBIT, CREDIT"
-        decimal balance_after
-        string reference_id "Idempotency Key (transaction_id)"
-        string description
-        datetime created_at
+        int user_id FK "Liên kết USERS(id) ON DELETE CASCADE"
+        decimal amount "Số tiền biến động (DECIMAL 15,2)"
+        enum transaction_type "DEBIT, CREDIT"
+        decimal balance_after "Số dư sau biến động"
+        varchar reference_id "Idempotency Reference (Tx UUID)"
+        varchar description "Mô tả giao dịch (cho phép NULL)"
+        timestamp created_at
     }
 
-    %% Tuition Database (TDTU)
+    %% 2. TUITION SERVICE DATABASE (tdtu_tuition_db)
     STUDENTS {
-        string student_code PK "MSSV (Ví dụ: 52100123)"
-        string full_name
-        string class_name
-        string major
-        string email "Email sinh viên TDTU"
+        varchar student_code PK "Mã số sinh viên (MSSV)"
+        varchar full_name "Họ và tên sinh viên"
+        varchar class_name "Lớp sinh hoạt"
+        varchar major "Chuyên ngành đào tạo"
+        varchar email "Email sinh viên TDTU"
+        timestamp created_at
     }
 
     TUITION_INVOICES {
         int id PK
-        string student_code FK
-        string semester "Ví dụ: HK1/2026-2027"
-        decimal amount "Số tiền học phí"
-        string status "UNPAID, PAID"
-        datetime paid_at
-        string paid_by_user "Username người nộp"
+        varchar student_code FK "Liên kết STUDENTS(student_code) ON DELETE CASCADE"
+        varchar semester "Học kỳ (UK cùng student_code)"
+        decimal amount "Số tiền học phí (DECIMAL 15,2)"
+        enum status "UNPAID, PAID"
+        datetime paid_at "Thời điểm gạch nợ (NULL nếu chưa nộp)"
+        varchar paid_by_user "Username người nộp (NULL nếu chưa nộp)"
+        varchar transaction_ref "Mã tham chiếu giao dịch"
         int version "Dùng cho Optimistic Locking"
+        timestamp created_at
+        timestamp updated_at
     }
 
-    %% Payment Database
+    %% 3. PAYMENT SERVICE DATABASE (ibanking_payment_db)
     TRANSACTIONS {
-        string id PK "UUID giao dịch"
-        int user_id FK
-        string username
-        string user_email
-        string student_code
-        string student_name
-        int invoice_id
-        string semester
-        decimal amount
-        string idempotency_key
-        string status "PENDING_OTP, PROCESSING, SUCCESS, FAILED, EXPIRED, CANCELLED, COMPENSATION_PENDING"
-        string failure_reason
-        datetime created_at
-        datetime completed_at
+        varchar id PK "UUID chuỗi 36 ký tự"
+        int user_id "Tham chiếu logic đến users(id)"
+        varchar username "Username người nộp tiền"
+        varchar user_email "Email nhận mã OTP"
+        varchar student_code "Tham chiếu logic đến students(student_code)"
+        varchar student_name "Họ tên sinh viên"
+        int invoice_id "Tham chiếu logic đến tuition_invoices(id)"
+        varchar semester "Học kỳ"
+        decimal amount "Số tiền thanh toán (DECIMAL 15,2)"
+        varchar idempotency_key "Khóa chống trùng (VARCHAR 64, cho phép NULL)"
+        enum status "PENDING_OTP, PROCESSING, SUCCESS, FAILED, EXPIRED, CANCELLED, COMPENSATION_PENDING"
+        varchar failure_reason "Lý do thất bại nếu có"
+        timestamp created_at
+        datetime completed_at "Thời điểm hoàn tất"
     }
 
     OTP_TOKENS {
         int id PK
-        string transaction_id FK
-        string otp_code "SHA-256 hash của OTP gốc (OWASP - không lưu plaintext)"
-        datetime expires_at "Hết hạn sau 5 phút"
-        boolean is_used "Đã dùng hay chưa"
-        datetime created_at
+        varchar transaction_id FK "UNIQUE - Liên kết TRANSACTIONS(id) ON DELETE CASCADE"
+        varchar otp_code "Mã băm SHA-256 (Chuẩn OWASP - không lưu plaintext)"
+        datetime expires_at "Hạn dùng 300 giây (5 phút)"
+        boolean is_used "Chỉ dùng 1 lần duy nhất (Single-use)"
+        timestamp created_at
     }
 
-    STUDENTS ||--o{ TUITION_INVOICES : "có khoản nợ"
-    USERS ||--o{ TRANSACTIONS : "thực hiện"
-    USERS ||--o{ ACCOUNT_TRANSACTIONS : "có lịch sử biến động"
-    TRANSACTIONS ||--|| OTP_TOKENS : "xác thực bằng"
+    %% Ràng buộc khóa ngoại vật lý nội bộ từng Database
+    USERS ||--o{ ACCOUNT_TRANSACTIONS : "has account history"
+    STUDENTS ||--o{ TUITION_INVOICES : "has invoices"
+    TRANSACTIONS ||--o| OTP_TOKENS : "has OTP (tối đa 1 OTP)"
 ```
 
 ---
