@@ -55,8 +55,8 @@ services:
       dockerfile: Dockerfile
     container_name: ibanking-user-service
     restart: always
-    expose:
-      - "8001"
+    ports:
+      - "8001:8001"
     environment:
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
@@ -84,8 +84,8 @@ services:
       dockerfile: Dockerfile
     container_name: ibanking-tuition-service
     restart: always
-    expose:
-      - "8002"
+    ports:
+      - "8002:8002"
     environment:
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
@@ -110,8 +110,8 @@ services:
       dockerfile: Dockerfile
     container_name: ibanking-payment-service
     restart: always
-    expose:
-      - "8003"
+    ports:
+      - "8003:8003"
     environment:
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
@@ -161,8 +161,8 @@ services:
       dockerfile: Dockerfile
     container_name: ibanking-notification-service
     restart: always
-    expose:
-      - "8004"
+    ports:
+      - "8004:8004"
     environment:
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
       SMTP_HOST: ${SMTP_HOST}
