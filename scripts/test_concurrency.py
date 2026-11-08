@@ -30,14 +30,14 @@ if sys.platform.startswith("win"):
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
-# Cấu hình màu sắc Terminal (ANSI Escape Codes)
+# Cấu hình màu sắc Terminal (ANSI Escape Codes tương phản cao trên cả nền đen và nền trắng)
 class Colors:
-    HEADER = '\033[95m'
-    BLUE = '\033[94m'
-    CYAN = '\033[96m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    RED = '\033[91m'
+    HEADER = '\033[1;35m'
+    BLUE = '\033[1;34m'
+    CYAN = '\033[1;36m'
+    GREEN = '\033[1;32m'
+    YELLOW = '\033[1;33m'
+    RED = '\033[1;31m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
     RESET = '\033[0m'
@@ -432,9 +432,39 @@ async def test_scenario_race_condition(client: httpx.AsyncClient) -> bool:
         json={"student_code": "524H0001", "amount": 15000000.00, "invoice_id": 1},
         headers=headers_b
     )
-    if r_init_b.status_code != 201:
+
+    # Trường hợp 1: Hệ thống kích hoạt Khóa phiên Concurrency (Session Lock) ngay tại bước Initiate
+    if r_init_b.status_code == 400 and "không thể thực hiện giao dịch" in r_init_b.text:
+        print_pass("Khóa phiên Concurrency (OTP Session Lock) kích hoạt thành công:")
+        print_pass("Hệ thống đã chặn an toàn User B ngay từ bước khởi tạo để bảo vệ hóa đơn sinh viên!")
+        print_info("Tiến hành cho User A xác thực OTP và hoàn tất thanh toán...")
+        r_conf_a = await client.post(
+            f"{GATEWAY_URL}/api/payments/confirm",
+            json={"transaction_id": tx_a["transaction_id"], "otp_code": otp_a},
+            headers=headers_a
+        )
+        if r_conf_a.status_code == 200:
+            print_pass("User A đã thanh toán thành công (HTTP 200)! Biên lai đã được gửi qua email.")
+        else:
+            print_fail(f"User A confirm thất bại: {r_conf_a.text}")
+            return False
+
+        # Kiểm tra hóa đơn đã chốt PAID
+        r_check = await client.get(f"{GATEWAY_URL}/api/tuition/students/524H0001", headers=headers_a)
+        invoice_data = r_check.json()
+        if invoice_data.get("status") == "PAID" and invoice_data.get("can_pay") is False:
+            print_pass("Hóa đơn học phí đã được chốt PAID đúng 1 lần và khóa thanh toán an toàn!")
+            print_pass("KỊCH BẢN RACE CONDITION & CONCURRENCY HOÀN TOÀN ĐẠT CHUẨN!")
+            return True
+        else:
+            print_fail(f"Trạng thái hóa đơn bất thường: {invoice_data}")
+            return False
+
+    elif r_init_b.status_code != 201:
         print_fail(f"User B initiate fail: {r_init_b.text}")
         return False
+
+    # Trường hợp 2: Cả 2 cùng qua bước Initiate -> Đua lệnh tại bước Confirm (Saga Rollback)
     tx_b = r_init_b.json()
     otp_b = await get_latest_otp_mailpit(client, "tranthib@ibanking.tdtu.edu.vn")
     print_info(f"User B đã nhận OTP: {otp_b} (TxID: {tx_b['transaction_id'][:8]}...)")
